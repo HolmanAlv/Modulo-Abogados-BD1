@@ -1,0 +1,116 @@
+# Common .gitignore for general projects (Windows, macOS, Linux, IDEs, common languages/builds)
+
+# OS files
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp*
+.pnpm-debug.log
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Java / Gradle / Maven
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+*.log
+.gradle/
+.mvn/wrapper/maven-wrapper.jar
+
+# C / C++
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.dylib
+*.out
+build/
+
+# .NET / Visual Studio
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+
+# Archives and packages
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Temporary files
+*.tmp
+*.swp
+*~.nib
+*~
+*.bak
+
+# Environment / credentials
+.env
+.env.*.local
+*.pem
+*.key
+secrets.env
+
+# Docker
+docker-compose.override.yml
+*.log
+/docker-compose.*.local.yml
+docker-compose.*.override.yml
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*
+
+# Misc
+coverage/
+coverage.*
+dist/
+dist-*/
+release/
+reports/
+
+# Keep git metadata
+!.gitignore
