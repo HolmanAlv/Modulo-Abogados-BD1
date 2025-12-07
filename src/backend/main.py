@@ -1,43 +1,33 @@
-"""
-Sistema de Gestión de Casos y Expedientes
-Backend con FastAPI y Oracle
-
-NOTA: Este backend usa las tablas exactas del schema SQL en src/db/initDB.sql
-Relaciones complejas manejadas mediante JOIN y subconsultas.
-"""
-
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import oracledb
 import os
 from typing import List, Optional, Dict, Any
 from datetime import date, datetime
 from pydantic import BaseModel
 
-# ============================================================================
-# CONFIGURACIÓN DE CONEXIÓN ORACLE
-# ============================================================================
-# Ruta al cliente instantáneo de Oracle
+
+# Pngan aca el cliente instantaneo de oracle, seguramente este en esa ruta pero revisen antes de ejecutar
 INSTANT_CLIENT_DIR = r"C:\oracle\instantclient_23_9"
 
 # Inicializar cliente Oracle si existe
 if os.path.isdir(INSTANT_CLIENT_DIR):
     oracledb.init_oracle_client(lib_dir=INSTANT_CLIENT_DIR)
 
-# Credenciales de conexión (CAMBIAR CON TUS DATOS)
-DB_USER = "tu_usuario"
-DB_PASSWORD = "tu_contraseña"
+# Credenciales de conexión de nuestro oracle, no olvidar correr la base de datos primero
+DB_USER = "system"
+DB_PASSWORD = "oracle"
 DB_HOST = "localhost"
 DB_PORT = 1521
-DB_SERVICE = "XE"  # Cambia según tu servicio Oracle
+DB_SERVICE = "XE" 
 
-# ============================================================================
-# INICIALIZAR APLICACIÓN FASTAPI
-# ============================================================================
+
+# Usemos FastAPI, queda mas sencillo de esta forma
 app = FastAPI(title="Gestión de Casos y Expedientes", version="1.0.0")
 
-# Configurar CORS para permitir solicitudes desde el frontend
+# CORS para permitir las solicitudes desde el front, puede no ser tan seguro pero revisamos luego, con tal de que funcione
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,11 +36,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ============================================================================
-# MODELOS PYDANTIC PARA VALIDACIÓN
-# ============================================================================
+# Servir archivos estáticos subidos (documentos)
+storage_dir = os.path.join(os.getcwd(), 'storage')
+os.makedirs(storage_dir, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=storage_dir), name="storage")
 
-# Modelo para Cliente - Tabla: CLIENTE
+
+# Siguen los modelos de Pydynamic para nuestras tablas
+
+# CLIENTE
 class Cliente(BaseModel):
     codCliente: Optional[str] = None
     idTipoDoc: str
@@ -58,7 +52,7 @@ class Cliente(BaseModel):
     apellCliente: str
     nDocumento: str
 
-# Modelo para Caso - Tabla: CASO
+# CASO
 class Caso(BaseModel):
     noCaso: Optional[int] = None
     codCliente: str
@@ -67,7 +61,7 @@ class Caso(BaseModel):
     fechaFin: Optional[date] = None
     valor: str
 
-# Modelo para Expediente - Tabla: EXPEDIENTE (clave compuesta)
+# EXPEDIENTE
 class Expediente(BaseModel):
     codEspecializacion: str
     pasoEtapa: int
@@ -77,46 +71,46 @@ class Expediente(BaseModel):
     cedula: Optional[str] = None
     fechaEtapa: date
 
-# Modelo para Suceso - Tabla: SUCESO
+# SUCESO
 class Suceso(BaseModel):
     codEspecializacion: str
     pasoEtapa: int
     noCaso: int
     consecExpe: int
-    conSuceso: Optional[int] = None  # Consecutivo del suceso
+    conSuceso: Optional[int] = None  # para el consecutivo del suceso
     descSuceso: str
 
-# Modelo para Resultado - Tabla: RESULTADO
+# RESULTADO
 class Resultado(BaseModel):
     codEspecializacion: str
     pasoEtapa: int
     noCaso: int
     consecExpe: int
-    conResul: Optional[int] = None  # Consecutivo del resultado
+    conResul: Optional[int] = None  # para el consecutivo del resultado
     descResul: str
 
-# Modelo para Documento - Tabla: DOCUMENTO
+# DOCUMENTO
 class Documento(BaseModel):
     codEspecializacion: str
     pasoEtapa: int
     noCaso: int
     consecExpe: int
-    conDoc: Optional[int] = None  # Consecutivo del documento
+    conDoc: Optional[int] = None  # Para el consecutivo del documento
     ubicaDoc: str
 
-# Modelo para Especialización - Tabla: ESPECIALIZACION
+# ESPECIALIZACION
 class Especializacion(BaseModel):
     codEspecializacion: str
     nomEspecializacion: str
 
-# Modelo para Abogado - Tabla: ABOGADO
+# ABOGADO
 class Abogado(BaseModel):
     cedula: str
     nombre: str
     apellido: str
     nTarjetaProfesional: str
 
-# Modelo para Contacto - Tabla: CONTACTO
+# CONTACTO
 class Contacto(BaseModel):
     codCliente: str
     conseContacto: int
@@ -124,7 +118,7 @@ class Contacto(BaseModel):
     valorContacto: str
     notificacion: int
 
-# Modelo para Lugar - Tabla: LUGAR
+# LUGAR
 class Lugar(BaseModel):
     codLugar: str
     lugCodLugar: Optional[str] = None
@@ -134,12 +128,12 @@ class Lugar(BaseModel):
     telLugar: str
     emailLugar: Optional[str] = None
 
-# Modelo para EtapaProcessal - Tabla: ETAPAPROCESAL
+# ETAPAPROCESAL
 class EtapaProcessal(BaseModel):
     codEtapa: str
     nomEtapa: str
 
-# Modelo para Especia_Etapa - Tabla: ESPECIA_ETAPA (flujo de etapas)
+# ESPECIA_ETAPA
 class EspeciaEtapa(BaseModel):
     codEspecializacion: str
     pasoEtapa: int
@@ -148,9 +142,8 @@ class EspeciaEtapa(BaseModel):
     nInstancia: Optional[int] = None
     codEspecializacion: str
 
-# ============================================================================
-# FUNCIÓN PARA OBTENER CONEXIÓN A ORACLE
-# ============================================================================
+# Poner aca pra lnuestra conexión con oracle, no olviden correr antes nuestro sql claro, Holman lo dejó en la carpeta db
+#Toca en una version mas reciente de oracle porque sino no corre
 def get_db_connection():
     """
     Obtiene una conexión a la base de datos Oracle.
@@ -166,9 +159,7 @@ def get_db_connection():
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error al conectar a Oracle: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - CLIENTE
-# ============================================================================
+# ENDPOINTS del cliente
 
 @app.get("/api/cliente/buscar/{nombre}/{apellido}")
 def buscar_cliente(nombre: str, apellido: str, connection = Depends(get_db_connection)):
@@ -231,9 +222,8 @@ def obtener_cliente_por_documento(documento: str, connection = Depends(get_db_co
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - CASO
-# ============================================================================
+# ENDPOINTS del caso
+
 
 @app.get("/api/caso/ultimo/{codCliente}")
 def obtener_ultimo_caso_activo(codCliente: str, connection = Depends(get_db_connection)):
@@ -304,12 +294,12 @@ def crear_caso(caso: Caso, connection = Depends(get_db_connection)):
     try:
         cursor = connection.cursor()
         
-        # Obtener el próximo número de caso (consecutivo)
+        # Importante para obtener el siguiente caso
         cursor.execute("SELECT MAX(noCaso) FROM Caso")
         max_case = cursor.fetchone()[0]
         nuevo_noCaso = (max_case if max_case else 0) + 1
         
-        # Insertar nuevo caso
+        # Script con el insert del caso
         query = """
             INSERT INTO Caso (noCaso, fechaInicio, fechaFin, valor, codEspecializacion, codCliente)
             VALUES (:noCaso, :fechaInicio, :fechaFin, :valor, :codEspecializacion, :codCliente)
@@ -317,7 +307,7 @@ def crear_caso(caso: Caso, connection = Depends(get_db_connection)):
         cursor.execute(query, {
             "noCaso": nuevo_noCaso,
             "fechaInicio": caso.fechaInicio,
-            "fechaFin": None,  # Siempre NULL inicialmente
+            "fechaFin": None,  # Al comienzo será null
             "valor": caso.valor,
             "codEspecializacion": caso.codEspecializacion,
             "codCliente": caso.codCliente
@@ -372,7 +362,8 @@ def actualizar_caso(noCaso: int, caso: Caso, connection = Depends(get_db_connect
     try:
         cursor = connection.cursor()
         
-        # Verificar si el caso existe y no tiene fecha fin
+        # El caso debe de existir y tambien revisar que no tenga fecha fin, porque sino ya estaría cerrado y eso es error
+        #revisar si es mejor hacer la validación de la fecha en el back o en el front
         cursor.execute(
             "SELECT fechaFin FROM Caso WHERE noCaso = :noCaso",
             {"noCaso": noCaso}
@@ -385,7 +376,7 @@ def actualizar_caso(noCaso: int, caso: Caso, connection = Depends(get_db_connect
         if result[0] is not None:
             raise HTTPException(status_code=400, detail="No se puede actualizar un caso cerrado (con fecha fin)")
         
-        # Actualizar caso
+        # Un update para el caso, solo valida por noCaso
         query = """
             UPDATE Caso
             SET fechaInicio = :fechaInicio,
@@ -407,9 +398,7 @@ def actualizar_caso(noCaso: int, caso: Caso, connection = Depends(get_db_connect
         connection.rollback()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - EXPEDIENTE Y ETAPA
-# ============================================================================
+# ENDPOINTS del expediente y la etapa
 
 @app.get("/api/expediente/caso/{noCaso}")
 def obtener_expedientes_caso(noCaso: int, connection = Depends(get_db_connection)):
@@ -448,7 +437,7 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
     try:
         cursor = connection.cursor()
         
-        # Obtener datos del expediente con clave compuesta
+        # Revisar el select, creo que está bien y me funciona bien en consola, pero igual revisar bien con varios tipos de casos
         query = """
             SELECT e.codEspecializacion, e.pasoEtapa, e.noCaso, e.consecExpe,
                    e.codLugar, e.cedula, e.fechaEtapa,
@@ -473,10 +462,8 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
         cursor.close()
         
         if result:
-            # Obtener sucesos, resultados y documentos del expediente
             cursor = connection.cursor()
             
-            # Obtener sucesos
             cursor.execute("""
                 SELECT conSuceso, descSuceso FROM Suceso
                 WHERE codEspecializacion = :codEsp
@@ -486,7 +473,6 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
             """, {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
             sucesos = [{"conSuceso": row[0], "descSuceso": row[1]} for row in cursor.fetchall()]
             
-            # Obtener resultados
             cursor.execute("""
                 SELECT conResul, descResul FROM Resultado
                 WHERE codEspecializacion = :codEsp
@@ -496,7 +482,6 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
             """, {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
             resultados = [{"conResul": row[0], "descResul": row[1]} for row in cursor.fetchall()]
             
-            # Obtener documentos
             cursor.execute("""
                 SELECT conDoc, ubicaDoc FROM Documento
                 WHERE codEspecializacion = :codEsp
@@ -537,12 +522,11 @@ def crear_expediente(expediente: Expediente, connection = Depends(get_db_connect
     try:
         cursor = connection.cursor()
         
-        # Obtener el próximo número de expediente
+        # Para el proxixmo numero de expediente
         cursor.execute("SELECT MAX(consecExpe) FROM Expediente")
         max_exp = cursor.fetchone()[0]
         nuevo_consecExpe = (max_exp if max_exp else 0) + 1
         
-        # Obtener especialización del caso
         cursor.execute(
             "SELECT codEspecializacion FROM Caso WHERE noCaso = :noCaso",
             {"noCaso": expediente.noCaso}
@@ -552,11 +536,10 @@ def crear_expediente(expediente: Expediente, connection = Depends(get_db_connect
         if not esp_result:
             raise HTTPException(status_code=404, detail="Caso no encontrado")
         
-        # Obtener la primera etapa para la especialización (por defecto, etapa 1)
-        # Esto depende de tu estructura. Asumiendo que la etapa inicial es siempre 1
-        primera_etapa = "1"  # O obtener dinámicamente según especialización
+        # Por defecto la etapa es 1 (o revisar si no hay etapa 0 o algo asi)
+        primera_etapa = "1"
         
-        # Insertar expediente
+        # Se inserta el expediente
         query = """
             INSERT INTO Expediente (consecExpe, noCaso, codEtapa, fechaEtapa)
             VALUES (:consecExpe, :noCaso, :codEtapa, :fechaEtapa)
@@ -587,7 +570,6 @@ def actualizar_etapa_expediente(consecExpe: int, etapa: Expediente, connection =
     try:
         cursor = connection.cursor()
         
-        # Actualizar expediente con datos de lugar y abogado
         query = """
             UPDATE Expediente
             SET codLugar = :codLugar,
@@ -615,9 +597,7 @@ def actualizar_etapa_expediente(consecExpe: int, etapa: Expediente, connection =
         connection.rollback()
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - SUCESO
-# ============================================================================
+# ENDPOINTS para el suceso
 
 @app.post("/api/suceso/crear")
 def crear_suceso(suceso: Suceso, connection = Depends(get_db_connection)):
@@ -628,7 +608,7 @@ def crear_suceso(suceso: Suceso, connection = Depends(get_db_connection)):
     try:
         cursor = connection.cursor()
         
-        # Obtener el próximo número de suceso para este expediente
+        #Para el proxumo numero de suceso se obtiene el ultimo
         cursor.execute("""
             SELECT MAX(conSuceso) FROM Suceso
             WHERE codEspecializacion = :codEsp
@@ -644,7 +624,6 @@ def crear_suceso(suceso: Suceso, connection = Depends(get_db_connection)):
         max_suceso = cursor.fetchone()[0]
         nuevo_conSuceso = (max_suceso if max_suceso else 0) + 1
         
-        # Insertar suceso
         query = """
             INSERT INTO Suceso (codEspecializacion, pasoEtapa, noCaso, consecExpe, conSuceso, descSuceso)
             VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conSuceso, :descSuceso)
@@ -704,9 +683,7 @@ def obtener_sucesos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecE
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - RESULTADO
-# ============================================================================
+# ENDPOINTS para el resultado
 
 @app.post("/api/resultado/crear")
 def crear_resultado(resultado: Resultado, connection = Depends(get_db_connection)):
@@ -717,7 +694,7 @@ def crear_resultado(resultado: Resultado, connection = Depends(get_db_connection
     try:
         cursor = connection.cursor()
         
-        # Obtener el próximo número de resultado
+        # Max del resultado para el proximo
         cursor.execute("""
             SELECT MAX(conResul) FROM Resultado
             WHERE codEspecializacion = :codEsp
@@ -733,7 +710,6 @@ def crear_resultado(resultado: Resultado, connection = Depends(get_db_connection
         max_resultado = cursor.fetchone()[0]
         nuevo_conResul = (max_resultado if max_resultado else 0) + 1
         
-        # Insertar resultado
         query = """
             INSERT INTO Resultado (codEspecializacion, pasoEtapa, noCaso, consecExpe, conResul, descResul)
             VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conResul, :descResul)
@@ -793,9 +769,7 @@ def obtener_resultados_expediente(codEsp: str, pasoEtapa: int, noCaso: int, cons
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - DOCUMENTO
-# ============================================================================
+# ENDPOINTS para el documento
 
 @app.post("/api/documento/crear")
 def crear_documento(documento: Documento, connection = Depends(get_db_connection)):
@@ -806,7 +780,7 @@ def crear_documento(documento: Documento, connection = Depends(get_db_connection
     try:
         cursor = connection.cursor()
         
-        # Obtener el próximo número de documento
+        # Max para el proximo documento
         cursor.execute("""
             SELECT MAX(conDoc) FROM Documento
             WHERE codEspecializacion = :codEsp
@@ -822,7 +796,6 @@ def crear_documento(documento: Documento, connection = Depends(get_db_connection
         max_doc = cursor.fetchone()[0]
         nuevo_conDoc = (max_doc if max_doc else 0) + 1
         
-        # Insertar documento
         query = """
             INSERT INTO Documento (codEspecializacion, pasoEtapa, noCaso, consecExpe, conDoc, ubicaDoc)
             VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conDoc, :ubicaDoc)
@@ -846,6 +819,212 @@ def crear_documento(documento: Documento, connection = Depends(get_db_connection
     except oracledb.Error as e:
         connection.rollback()
         raise HTTPException(status_code=500, detail=f"Error al crear documento: {str(e)}")
+
+
+@app.post("/api/documento/upload")
+def upload_documento(
+    codEspecializacion: str = Form(...),
+    pasoEtapa: int = Form(...),
+    noCaso: int = Form(...),
+    consecExpe: int = Form(...),
+    file: UploadFile = File(...),
+    connection = Depends(get_db_connection)
+):
+    """
+    Subir un archivo y registrar su ruta en la tabla Documento.
+    Guarda el archivo en `storage/documents/{noCaso}/{consecExpe}/` y crea el registro en la BD.
+    """
+    try:
+        # Crear carpeta de almacenamiento si no existe
+        base_dir = os.path.join(os.getcwd(), "storage", "documents", str(noCaso), str(consecExpe))
+        os.makedirs(base_dir, exist_ok=True)
+
+        filename = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+        file_path = os.path.join(base_dir, filename)
+
+        with open(file_path, "wb") as f:
+            content = file.file.read()
+            f.write(content)
+
+        # Registrar documento en la BD (usar la ruta relativa desde la raíz del proyecto)
+        ubica = os.path.relpath(file_path, os.getcwd()).replace('\\', '/')
+
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT MAX(conDoc) FROM Documento
+            WHERE codEspecializacion = :codEsp
+            AND pasoEtapa = :pasoEtapa
+            AND noCaso = :noCaso
+            AND consecExpe = :consecExpe
+        """, {
+            "codEsp": codEspecializacion,
+            "pasoEtapa": pasoEtapa,
+            "noCaso": noCaso,
+            "consecExpe": consecExpe
+        })
+        max_doc = cursor.fetchone()[0]
+        nuevo_conDoc = (max_doc if max_doc else 0) + 1
+
+        cursor.execute(
+            "INSERT INTO Documento (codEspecializacion, pasoEtapa, noCaso, consecExpe, conDoc, ubicaDoc) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conDoc, :ubica)",
+            {
+                "codEsp": codEspecializacion,
+                "pasoEtapa": pasoEtapa,
+                "noCaso": noCaso,
+                "consecExpe": consecExpe,
+                "conDoc": nuevo_conDoc,
+                "ubica": ubica
+            }
+        )
+        connection.commit()
+        cursor.close()
+
+        return {"success": True, "conDoc": nuevo_conDoc, "ubicaDoc": ubica}
+    except Exception as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error subiendo documento: {str(e)}")
+
+
+@app.post("/api/expediente/guardar")
+def guardar_expediente(payload: Dict[str, Any], connection = Depends(get_db_connection)):
+    """
+    Guarda/actualiza un expediente junto con sus sucesos y resultados.
+    payload esperado (JSON): {
+        codEspecializacion, pasoEtapa, noCaso, consecExpe,
+        codLugar, cedula, fechaEtapa,
+        sucesos: [{descSuceso}], resultados: [{descResul}]
+    }
+    """
+    try:
+        cursor = connection.cursor()
+
+        codEsp = payload.get("codEspecializacion")
+        pasoEtapa = int(payload.get("pasoEtapa"))
+        noCaso = int(payload.get("noCaso"))
+        consecExpe = int(payload.get("consecExpe"))
+
+        # Actualizar o insertar expediente
+        cursor.execute("SELECT 1 FROM Expediente WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+                       {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
+        exists = cursor.fetchone()
+
+        codLugar = payload.get("codLugar")
+        cedula = payload.get("cedula")
+        fechaEtapa = payload.get("fechaEtapa")
+
+        if exists:
+            cursor.execute(
+                "UPDATE Expediente SET codLugar = :codLugar, cedula = :cedula, fechaEtapa = TO_DATE(:fechaEtapa, 'YYYY-MM-DD') WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+                {"codLugar": codLugar, "cedula": cedula, "fechaEtapa": fechaEtapa, "codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe}
+            )
+        else:
+            cursor.execute(
+                "INSERT INTO Expediente (codEspecializacion, pasoEtapa, noCaso, consecExpe, codLugar, cedula, fechaEtapa) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :codLugar, :cedula, TO_DATE(:fechaEtapa, 'YYYY-MM-DD'))",
+                {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe, "codLugar": codLugar, "cedula": cedula, "fechaEtapa": fechaEtapa}
+            )
+
+        # Sucesos
+        sucesos = payload.get("sucesos", []) or []
+        for s in sucesos:
+            desc = s.get("descSuceso")
+            if not desc:
+                continue
+            cursor.execute("SELECT MAX(conSuceso) FROM Suceso WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+                           {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
+            max_s = cursor.fetchone()[0]
+            nuevo = (max_s if max_s else 0) + 1
+            cursor.execute("INSERT INTO Suceso (codEspecializacion, pasoEtapa, noCaso, consecExpe, conSuceso, descSuceso) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conSuceso, :descSuceso)",
+                           {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe, "conSuceso": nuevo, "descSuceso": desc})
+
+        # Resultados
+        resultados = payload.get("resultados", []) or []
+        for r in resultados:
+            desc = r.get("descResul")
+            if not desc:
+                continue
+            cursor.execute("SELECT MAX(conResul) FROM Resultado WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+                           {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
+            max_r = cursor.fetchone()[0]
+            nuevo_r = (max_r if max_r else 0) + 1
+            cursor.execute("INSERT INTO Resultado (codEspecializacion, pasoEtapa, noCaso, consecExpe, conResul, descResul) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conResul, :descResul)",
+                           {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe, "conResul": nuevo_r, "descResul": desc})
+
+        connection.commit()
+        cursor.close()
+
+        return {"success": True, "mensaje": "Expediente guardado"}
+    except oracledb.Error as e:
+        connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error guardando expediente: {str(e)}")
+
+
+@app.get("/api/caso/{noCaso}/print")
+def imprimir_caso(noCaso: int, connection = Depends(get_db_connection)):
+    """
+    Genera una vista HTML simplificada del caso con sus expedientes, sucesos, resultados y documentos.
+    """
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT noCaso, fechaInicio, fechaFin, valor, codEspecializacion, codCliente FROM Caso WHERE noCaso = :noCaso", {"noCaso": noCaso})
+        caso = cursor.fetchone()
+        if not caso:
+            raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+        # Cliente
+        cursor.execute("SELECT nomCliente, apellCliente, nDocumento FROM Cliente WHERE codCliente = :codCliente", {"codCliente": caso[5]})
+        cliente = cursor.fetchone()
+
+        # Expedientes
+        cursor.execute("SELECT consecExpe, codEspecializacion, pasoEtapa, TO_CHAR(fechaEtapa,'YYYY-MM-DD') FROM Expediente WHERE noCaso = :noCaso ORDER BY consecExpe", {"noCaso": noCaso})
+        expedientes = cursor.fetchall()
+
+        html = f"<html><head><meta charset='utf-8'><title>Caso {noCaso}</title></head><body>"
+        html += f"<h1>Caso {noCaso}</h1>"
+        if cliente:
+            html += f"<p><strong>Cliente:</strong> {cliente[0]} {cliente[1]} (Doc: {cliente[2]})</p>"
+        html += f"<p><strong>Valor:</strong> {caso[3]}</p>"
+        html += "<hr/>"
+
+        for ex in expedientes:
+            consec = ex[0]
+            html += f"<h2>Expediente {consec}</h2>"
+            html += f"<p><strong>Especialización:</strong> {ex[1]} - <strong>Etapa:</strong> {ex[2]} - <strong>Fecha:</strong> {ex[3]}</p>"
+
+            # Sucesos
+            cursor.execute("SELECT conSuceso, descSuceso FROM Suceso WHERE noCaso = :noCaso AND consecExpe = :consecExpe ORDER BY conSuceso", {"noCaso": noCaso, "consecExpe": consec})
+            sucesos = cursor.fetchall()
+            if sucesos:
+                html += "<h3>Sucesos</h3><ul>"
+                for s in sucesos:
+                    html += f"<li>{s[1]}</li>"
+                html += "</ul>"
+
+            # Resultados
+            cursor.execute("SELECT conResul, descResul FROM Resultado WHERE noCaso = :noCaso AND consecExpe = :consecExpe ORDER BY conResul", {"noCaso": noCaso, "consecExpe": consec})
+            resultados = cursor.fetchall()
+            if resultados:
+                html += "<h3>Resultados</h3><ul>"
+                for r in resultados:
+                    html += f"<li>{r[1]}</li>"
+                html += "</ul>"
+
+            # Documentos
+            cursor.execute("SELECT conDoc, ubicaDoc FROM Documento WHERE noCaso = :noCaso AND consecExpe = :consecExpe ORDER BY conDoc", {"noCaso": noCaso, "consecExpe": consec})
+            docs = cursor.fetchall()
+            if docs:
+                html += "<h3>Documentos</h3><ul>"
+                for d in docs:
+                    path = d[1]
+                    html += f"<li><a href='/{path}' target='_blank'>Documento {d[0]}</a></li>"
+                html += "</ul>"
+
+            html += "<hr/>"
+
+        html += "</body></html>"
+        cursor.close()
+        return JSONResponse(content=html, media_type="text/html")
+    except oracledb.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 @app.get("/api/documento/{codEsp}/{pasoEtapa}/{noCaso}/{consecExpe}")
 def obtener_documentos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecExpe: int, connection = Depends(get_db_connection)):
@@ -882,9 +1061,7 @@ def obtener_documentos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, cons
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - ESPECIALIZACIÓN
-# ============================================================================
+# ENDPOINTS para la especialización
 
 @app.get("/api/especializacion/")
 def obtener_especializaciones(connection = Depends(get_db_connection)):
@@ -908,9 +1085,7 @@ def obtener_especializaciones(connection = Depends(get_db_connection)):
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - ABOGADO
-# ============================================================================
+# ENDPOINTS para el abogado
 
 @app.get("/api/abogado/especializacion/{codEspecializacion}")
 def obtener_abogados_especializacion(codEspecializacion: str, connection = Depends(get_db_connection)):
@@ -943,9 +1118,7 @@ def obtener_abogados_especializacion(codEspecializacion: str, connection = Depen
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - LUGAR
-# ============================================================================
+# ENDPOINTS para el lugar
 
 @app.get("/api/lugar/ciudades")
 def obtener_ciudades(connection = Depends(get_db_connection)):
@@ -1038,9 +1211,7 @@ def obtener_lugar(codLugar: str, connection = Depends(get_db_connection)):
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
-# ============================================================================
-# ENDPOINTS - ESPECIA_ETAPA (Workflow de etapas por especialización)
-# ============================================================================
+# ENDPOINTS para especia_ etapa
 
 @app.get("/api/especia-etapa/{codEspecializacion}")
 def obtener_etapas_especializacion(codEspecializacion: str, connection = Depends(get_db_connection)):
@@ -1118,9 +1289,7 @@ def health_check():
     """
     return {"status": "ok", "mensaje": "API de Gestión de Casos funcionando"}
 
-# ============================================================================
-# ENDPOINT RAÍZ
-# ============================================================================
+# ENDPOINT para la raíz
 
 @app.get("/")
 def root():

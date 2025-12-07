@@ -1,7 +1,4 @@
-/* ========================================================================
-   ESTILOS GENERALES DEL SISTEMA
-   ======================================================================== */
-
+/* Estilos generales */
 * {
     margin: 0;
     padding: 0;
@@ -24,10 +21,6 @@ body {
     overflow: hidden;
 }
 
-/* ========================================================================
-   ENCABEZADO
-   ======================================================================== */
-
 .header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -40,10 +33,7 @@ body {
     font-weight: 600;
 }
 
-/* ========================================================================
-   SELECTOR DE PESTAÑA (CASO/EXPEDIENTE)
-   ======================================================================== */
-
+/* Caso / expediente (las pestañas)*/
 .tab-selector {
     display: flex;
     background: #f8f9fa;
@@ -73,10 +63,6 @@ body {
     border-bottom-color: #667eea;
 }
 
-/* ========================================================================
-   CONTENIDO DE PESTAÑA
-   ======================================================================== */
-
 .tab-content {
     display: none;
     padding: 30px;
@@ -97,10 +83,6 @@ body {
         transform: translateY(0);
     }
 }
-
-/* ========================================================================
-   CONTENEDORES DE CASO
-   ======================================================================== */
 
 .caso-container,
 .expediente-container {
@@ -124,10 +106,6 @@ body {
 .columna.derecha {
     flex: 0.5;
 }
-
-/* ========================================================================
-   GRUPOS DE FORMULARIO
-   ======================================================================== */
 
 .form-group {
     display: flex;
@@ -168,10 +146,6 @@ body {
     cursor: not-allowed;
 }
 
-/* ========================================================================
-   GRUPOS DE ENTRADA CON BOTONES
-   ======================================================================== */
-
 .input-group {
     display: flex;
     gap: 8px;
@@ -196,10 +170,6 @@ body {
     cursor: pointer;
     color: #667eea;
 }
-
-/* ========================================================================
-   BOTONES
-   ======================================================================== */
 
 button {
     font-size: 13px;
@@ -287,10 +257,6 @@ button {
     margin-top: 20px;
 }
 
-/* ========================================================================
-   RESULTADOS DE BÚSQUEDA
-   ======================================================================== */
-
 .resultados-busqueda {
     background: #f8f9fa;
     border: 1px solid #dee2e6;
@@ -320,10 +286,6 @@ button {
 .resultado-item:hover {
     background: #e9ecef;
 }
-
-/* ========================================================================
-   ÁREA DE DETALLES DE ETAPA
-   ======================================================================== */
 
 .etapa-detalles {
     display: grid;
@@ -414,10 +376,6 @@ button {
     background: #e9ecef;
 }
 
-/* ========================================================================
-   MODAL
-   ======================================================================== */
-
 .modal {
     position: fixed;
     z-index: 1000;
@@ -474,10 +432,7 @@ button {
     color: #212529;
 }
 
-/* ========================================================================
-   RESPONSIVE
-   ======================================================================== */
-
+/* Para procurar que sea responsive siempre que se pueda */
 @media (max-width: 1024px) {
     .caso-container,
     .expediente-container {
@@ -519,6 +474,6 @@ button {
 
     .form-group input,
     .form-group select {
-        font-size: 16px; /* Evita zoom en móviles */
+        font-size: 16px; /* Copie este codigo para evitar el zoom en moviles, no se si sirva ni como correrlo jaajaj */
     }
 }
