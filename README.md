@@ -1,4 +1,4 @@
-﻿# Sistema de Gestión de Casos y Expedientes  Gabinete de Abogados
+# Sistema de Gestión de Casos y Expedientes  Gabinete de Abogados
 
 Sistema web completo para la gestión de casos y expedientes de un gabinete de abogados, desarrollado con **FastAPI** (Python) en el backend, **HTML5/CSS3/JavaScript** en el frontend, y **Oracle** como base de datos.
 
