@@ -1,15 +1,26 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Casos y Expedientes</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="container">
         <header class="header">
-            <h1>Sistema de Gestión de Casos y Expedientes</h1>
+            <div class="header-content">
+                <div class="header-left">
+                    <h1>Sistema de Gestión Jurídica</h1>
+                    <p class="header-subtitle">Casos y Expedientes</p>
+                </div>
+                <div class="header-right">
+                    <span class="user-info">👤 Usuario: Admin</span>
+                    <span class="date-info">📅 Fecha: <span id="currentDate"></span></span>
+                </div>
+            </div>
         </header>
 
         <!--Aca van las pestañas de caso y expediente, revisar tamaños y que quede bien de acuerdo a los mock ups de la profe -->
@@ -21,54 +32,54 @@
         <!-- Para la pestaña del caso-->
         <div id="caso" class="tab-content active">
             <div class="caso-container">
-                
+
                 <div class="columna izquierda">
                     <div class="form-group">
                         <label for="noCaso">No. Caso:</label>
                         <div class="input-group">
-                            <input type="text" id="noCaso" disabled>
-                            <button id="btnCrearCaso" class="btn-icon">Crear</button>
+                            <select id="noCaso">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <button id="btnCrearCaso" class="btn-crear">Crear</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="fechaInicio">Fecha Inicio:</label>
                         <div class="input-group">
-                            <input type="date" id="fechaInicio" disabled>
-                            <span class="calendar-icon">📅</span>
+                            <input type="date" id="fechaInicio">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="fechaFin">Fecha Fin:</label>
                         <div class="input-group">
-                            <input type="date" id="fechaFin" disabled>
-                            <span class="calendar-icon">📅</span>
+                            <input type="date" id="fechaFin">
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="especializacion">Especialización:</label>
-                        <input type="text" id="especializacion" disabled>
+                        <select id="especializacion">
+                            <option value="">-- Seleccionar --</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
                         <label for="valor">Valor:</label>
                         <input type="text" id="valor" disabled>
+                        <button id="btnAcuerdoPago" class="btn-acuerdo">Acuerdo Pago</button>
                     </div>
-
-                    <button id="btnAcuerdoPago" class="btn-secondary" disabled>Acuerdo Pago</button>
                 </div>
 
                 <div class="columna derecha">
                     <div class="form-group">
                         <label for="nombreApellidoCliente">Cliente:</label>
-                        <input type="text" id="nombreApellidoCliente" placeholder="Nombre y Apellido">
-                    </div>
-
-                    <div class="input-group-buttons">
-                        <button id="btnBuscarCliente" class="btn-search">🔍 Buscar</button>
-                        <button id="btnCrearCliente" class="btn-secondary" disabled>Crear</button>
+                        <div class="input-with-buttons">
+                            <input type="text" id="nombreApellidoCliente" placeholder="Nombre y Apellido">
+                            <button id="btnBuscarCliente" class="btn-icon-only">🔍</button>
+                            <button id="btnCrearCliente" class="btn-crear">Crear</button>
+                        </div>
                     </div>
 
                     <div id="resultadosBusquedaCliente" class="resultados-busqueda">
@@ -76,21 +87,14 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="nDocumento">No. Documento:</label>
+                        <label for="nDocumento">Documento:</label>
                         <input type="text" id="nDocumento" disabled>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="casosActivos">Otros Casos Activos:</label>
-                        <select id="casosActivos" disabled>
-                            <option value="">-- Seleccionar --</option>
-                        </select>
                     </div>
                 </div>
             </div>
 
             <div class="button-group bottom">
-                <button id="btnGuardarCaso" class="btn-primary" disabled>Guardar</button>
+                <button id="btnGuardarCaso" class="btn-primary">Guardar</button>
             </div>
         </div>
 
@@ -103,7 +107,7 @@
                         <label for="consecExpe">No. Expediente:</label>
                         <div class="input-group">
                             <input type="text" id="consecExpe" disabled>
-                            <button id="btnCrearExpediente" class="btn-icon" disabled>Crear</button>
+                            <button id="btnCrearExpediente" class="btn-icon btn-crear" disabled>Crear</button>
                         </div>
                     </div>
 
@@ -180,7 +184,8 @@
 
                 <div class="detalles-column">
                     <label for="resultado">Resultado:</label>
-                    <textarea id="resultado" class="text-editor" disabled placeholder="Doble clic para editar"></textarea>
+                    <textarea id="resultado" class="text-editor" disabled
+                        placeholder="Doble clic para editar"></textarea>
                     <div class="nav-arrows">
                         <button id="btnAnteriorResultado" class="btn-nav" disabled>◀ Anterior</button>
                         <button id="btnSiguienteResultado" class="btn-nav" disabled>Siguiente ▶</button>
@@ -216,4 +221,5 @@
 
     <script src="script.js"></script>
 </body>
+
 </html>

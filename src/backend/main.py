@@ -17,11 +17,11 @@ if os.path.isdir(INSTANT_CLIENT_DIR):
     oracledb.init_oracle_client(lib_dir=INSTANT_CLIENT_DIR)
 
 # Credenciales de conexión de nuestro oracle, no olvidar correr la base de datos primero
-DB_USER = "system"
-DB_PASSWORD = "oracle"
+DB_USER = "modulo"
+DB_PASSWORD = "modulo"
 DB_HOST = "localhost"
 DB_PORT = 1521
-DB_SERVICE = "XE" 
+DB_SERVICE = "XEPDB1" 
 
 
 # Usemos FastAPI, queda mas sencillo de esta forma
@@ -159,8 +159,28 @@ def get_db_connection():
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error al conectar a Oracle: {str(e)}")
 
-# ENDPOINTS del cliente
+@app.get("/api/test-connection")
+def test_connection(connection = Depends(get_db_connection)):
+    """
+    Prueba la conexión a la base de datos Oracle.
+    Ejecuta una consulta simple para verificar que la conexión funciona correctamente.
+    """
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT nomCliente FROM cliente")
+        result = cursor.fetchone()
+        cursor.close()
+        
+        return {
+            "nombre": result,
+            "status": "success",
+            "mensaje": "Conexión a Oracle exitosa",
+        }
+    except oracledb.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error de conexión: {str(e)}")
 
+
+# ENDPOINTS del cliente
 @app.get("/api/cliente/buscar/{nombre}/{apellido}")
 def buscar_cliente(nombre: str, apellido: str, connection = Depends(get_db_connection)):
     """
@@ -1130,8 +1150,8 @@ def obtener_ciudades(connection = Depends(get_db_connection)):
         query = """
             SELECT codLugar, nomLugar, direLugar, telLugar
             FROM Lugar
-            WHERE lugCodLugar IS NULL
-            AND idTipoLugar = 'CIUDAD'
+            WHERE LUG_CODLUGAR IS NULL
+            AND idTipoLugar = '0001'
             ORDER BY nomLugar
         """
         cursor.execute(query)
@@ -1281,25 +1301,6 @@ def obtener_etapa_especifica(codEspecializacion: str, pasoEtapa: int, connection
             raise HTTPException(status_code=404, detail="Etapa no encontrada")
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
-
-@app.get("/api/health")
-def health_check():
-    """
-    Verifica que la API está funcionando.
-    """
-    return {"status": "ok", "mensaje": "API de Gestión de Casos funcionando"}
-
-# ENDPOINT para la raíz
-
-@app.get("/")
-def root():
-    """
-    Endpoint raíz de bienvenida.
-    """
-    return {
-        "mensaje": "Bienvenido al Sistema de Gestión de Casos y Expedientes",
-        "documentación": "http://localhost:8000/docs"
-    }
 
 if __name__ == "__main__":
     import uvicorn

@@ -8,11 +8,22 @@ let expedienteSeleccionado = null;
 let modoEdicion = false;
 
 document.addEventListener("DOMContentLoaded", () => {
+    inicializarFechaHeader();
     inicializarEventosPestañas();
     inicializarEventosCaso();
     inicializarEventosExpediente();
     inicializarEventosModal();
 });
+
+// Mostrar fecha actual en el header
+function inicializarFechaHeader() {
+    const dateElement = document.getElementById("currentDate");
+    if (dateElement) {
+        const today = new Date();
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        dateElement.textContent = today.toLocaleDateString('es-ES', options);
+    }
+}
 
 // Para cada cambio de pestaña
 function inicializarEventosPestañas() {
@@ -43,7 +54,6 @@ function inicializarEventosCaso() {
     const btnCrearCaso = document.getElementById("btnCrearCaso");
     const btnGuardarCaso = document.getElementById("btnGuardarCaso");
     const nombreApellidoInput = document.getElementById("nombreApellidoCliente");
-    const casosActivosSelect = document.getElementById("casosActivos");
 
     btnBuscarCliente.addEventListener("click", async () => {
         const nombreApellido = nombreApellidoInput.value.trim().split(" ");
@@ -132,13 +142,6 @@ function inicializarEventosCaso() {
         } catch (error) {
             console.error("Error al crear caso:", error);
             alert("Error al crear caso");
-        }
-    });
-
-    casosActivosSelect.addEventListener("change", async (e) => {
-        const noCaso = e.target.value;
-        if (noCaso) {
-            await cargarCaso(parseInt(noCaso));
         }
     });
 
@@ -349,32 +352,6 @@ function seleccionarCliente(cliente) {
         `${cliente.nomCliente} ${cliente.apellCliente}`;
     document.getElementById("resultadosBusquedaCliente").classList.remove("mostrar");
     document.getElementById("btnCrearCaso").disabled = false;
-
-    cargarCasosActivos(cliente.codCliente);
-}
-
-async function cargarCasosActivos(codCliente) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/caso/activos/${codCliente}`);
-        const casos = await response.json();
-
-        const select = document.getElementById("casosActivos");
-        select.innerHTML = '<option value="">-- Seleccionar --</option>';
-
-        casos.forEach((caso) => {
-            const option = document.createElement("option");
-            option.value = caso.noCaso;
-            option.textContent = `Caso ${caso.noCaso} - ${caso.valor}`;
-            select.appendChild(option);
-        });
-
-        if (casos.length > 0) {
-            select.value = casos[0].noCaso;
-            cargarCaso(casos[0].noCaso);
-        }
-    } catch (error) {
-        console.error("Error al cargar casos activos:", error);
-    }
 }
 
 // Funciones para el caso

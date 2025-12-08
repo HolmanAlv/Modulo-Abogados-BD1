@@ -69,6 +69,7 @@
    cd src\backend
    .\venv\Scripts\Activate.ps1
    python main.py
+   #o uvicorn main:app --reload
    
    Terminal 2:
    cd src\frontend
@@ -315,14 +316,5 @@ Todo lo solicitado ha sido implementado:
 ✓ Documentación completa
 ✓ Scripts de automatización
 ✓ 100% en español
-
-═══════════════════════════════════════════════════════════════════════════
-
-Versión: 1.0.0
-Fecha: Diciembre 2024
-Proyecto: Bases de Datos I - Universidad Nacional
-Módulo: Gestión de Casos y Expedientes
-
-¡Listo para usar! 🎉
 
 ═══════════════════════════════════════════════════════════════════════════
