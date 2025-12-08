@@ -106,106 +106,122 @@
                     <div class="form-group">
                         <label for="consecExpe">No. Expediente:</label>
                         <div class="input-group">
-                            <input type="text" id="consecExpe" disabled>
-                            <button id="btnCrearExpediente" class="btn-icon btn-crear" disabled>Crear</button>
+                            <input type="text" id="consecExpe">
+                            <button id="btnCrearExpediente" class="btn-icon btn-crear">Crear</button>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label for="noEtapa">No. Etapa:</label>
-                        <input type="text" id="noEtapa" disabled>
+                        <input type="text" id="noEtapa">
                     </div>
 
                     <div class="form-group">
                         <label for="fechaEtapa">Fecha Etapa:</label>
-                        <div class="input-group">
-                            <input type="date" id="fechaEtapa" disabled>
-                            <span class="calendar-icon">📅</span>
-                        </div>
+                        <input type="date" id="fechaEtapa">
                     </div>
 
                     <div class="form-group">
                         <label for="nomEtapa">Nombre Etapa:</label>
-                        <input type="text" id="nomEtapa" disabled>
+                        <input type="text" id="nomEtapa">
                     </div>
 
                     <div class="form-group">
                         <label for="instancia">Instancia:</label>
-                        <input type="text" id="instancia" disabled>
+                        <input type="text" id="instancia">
                     </div>
                 </div>
 
                 <div class="columna derecha">
                     <div class="form-group">
                         <label for="noCasoExp">No. Caso:</label>
-                        <input type="text" id="noCasoExp" disabled>
+                        <input type="text" id="noCasoExp">
                     </div>
 
                     <div class="form-group">
                         <label for="abogado">Abogado:</label>
-                        <select id="abogado" disabled>
+                        <select id="abogado">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="ciudad">Ciudad:</label>
-                        <select id="ciudad" disabled>
+                        <select id="ciudad">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="entidad">Entidad:</label>
-                        <select id="entidad" disabled>
+                        <select id="entidad">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label for="impugnacion">Impugnación:</label>
-                        <select id="impugnacion" disabled>
+                        <select id="impugnacion">
                             <option value="">-- Seleccionar --</option>
                         </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Revisar dimensiones de suceso y resultado, mirar tamaños según mockup -->
+            <!-- Sección de Suceso, Resultado y Documentos -->
             <div class="etapa-detalles">
-                <div class="detalles-column">
-                    <label for="suceso">Suceso:</label>
-                    <textarea id="suceso" class="text-editor" disabled placeholder="Doble clic para editar"></textarea>
-                    <div class="nav-arrows">
-                        <button id="btnAnteriorSuceso" class="btn-nav" disabled>◀ Anterior</button>
-                        <button id="btnSiguienteSuceso" class="btn-nav" disabled>Siguiente ▶</button>
+                <div class="suceso-resultado-section">
+                    <div class="detalles-column">
+                        <label for="suceso">Suceso:</label>
+                        <textarea id="suceso" class="text-editor" placeholder="Doble clic para editar"></textarea>
+                    </div>
+
+                    <div class="detalles-column">
+                        <label for="resultado">Resultado:</label>
+                        <textarea id="resultado" class="text-editor"
+                            placeholder="Doble clic para editar"></textarea>
                     </div>
                 </div>
 
-                <div class="detalles-column">
-                    <label for="resultado">Resultado:</label>
-                    <textarea id="resultado" class="text-editor" disabled
-                        placeholder="Doble clic para editar"></textarea>
-                    <div class="nav-arrows">
-                        <button id="btnAnteriorResultado" class="btn-nav" disabled>◀ Anterior</button>
-                        <button id="btnSiguienteResultado" class="btn-nav" disabled>Siguiente ▶</button>
-                    </div>
-                </div>
-
-                <div class="documentos-acciones">
-                    <div class="documentos-group">
-                        <label>Documentos:</label>
-                        <button id="btnAdjuntarDoc" class="btn-icon" disabled>📎 Adjuntar</button>
-                        <div id="listaDocumentos" class="lista-documentos">
-                            <!-- DE NUEVO, NO QUEMAR ESTO -->
+                <div class="documentos-section">
+                    <label>Documentos:</label>
+                    <div class="documentos-menus">
+                        <div class="documento-menu-item">
+                            <select class="select-documento">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <button class="btn-agregar-doc">📎</button>
+                        </div>
+                        <div class="documento-menu-item">
+                            <select class="select-documento">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <button class="btn-agregar-doc">📎</button>
+                        </div>
+                        <div class="documento-menu-item">
+                            <select class="select-documento">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <button class="btn-agregar-doc">📎</button>
+                        </div>
+                        <div class="documento-menu-item">
+                            <select class="select-documento">
+                                <option value="">-- Seleccionar --</option>
+                            </select>
+                            <button class="btn-agregar-doc">📎</button>
                         </div>
                     </div>
-
-                    <div class="acciones-group">
-                        <button id="btnImprimirCaso" class="btn-icon" disabled>🖨️ Imprimir</button>
-                        <button id="btnGuardarExpediente" class="btn-primary" disabled>Guardar</button>
-                    </div>
                 </div>
+            </div>
+
+            <!-- Barra de acciones -->
+            <div class="acciones-bottom-bar">
+                <div class="nav-arrows-inline">
+                    <button id="btnAnteriorSuceso" class="btn-arrow">◀</button>
+                    <button id="btnSiguienteSuceso" class="btn-arrow">▶</button>
+                </div>
+                <button id="btnGuardarExpediente" class="btn-primary btn-guardar">Guardar</button>
+                <button id="btnImprimirCaso" class="btn-icon-only <btn-imprimir>">🖨️</button>
             </div>
         </div>
     </div>
