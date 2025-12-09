@@ -9,11 +9,29 @@ let modoEdicion = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     inicializarFechaHeader();
+    inicializarEstadoInicial();
     inicializarEventosPestañas();
     inicializarEventosCaso();
     inicializarEventosExpediente();
     inicializarEventosModal();
 });
+
+// Inicializar estado inicial de todos los campos
+function inicializarEstadoInicial() {
+    // Todos los campos deshabilitados excepto el campo de nombre cliente
+    document.getElementById("noCaso").disabled = true;
+    document.getElementById("fechaInicio").disabled = true;
+    document.getElementById("fechaFin").disabled = true;
+    document.getElementById("especializacion").disabled = true;
+    document.getElementById("valor").disabled = true;
+    document.getElementById("nDocumento").disabled = true;
+    document.getElementById("btnCrearCaso").disabled = true;
+    document.getElementById("btnGuardarCaso").disabled = true;
+    document.getElementById("btnAcuerdoPago").disabled = true;
+    
+    // Campo de nombre cliente habilitado
+    document.getElementById("nombreApellidoCliente").disabled = false;
+}
 
 // Mostrar fecha actual en el header
 function inicializarFechaHeader() {
@@ -72,12 +90,20 @@ function inicializarEventosCaso() {
             const clientes = await response.json();
 
             if (clientes.length === 0) {
-                alert("Cliente no encontrado");
+                // Cliente no encontrado - mostrar alerta para crear
+                if (confirm("Cliente no encontrado. ¿Desea crear un nuevo cliente?")) {
+                    alert("La funcionalidad de creación de cliente no está implementada aún.");
+                }
                 document.getElementById("resultadosBusquedaCliente").classList.remove("mostrar");
                 return;
             }
 
-            mostrarResultadosBusqueda(clientes);
+            // Si solo hay un cliente, seleccionarlo automáticamente
+            if (clientes.length === 1) {
+                await seleccionarCliente(clientes[0]);
+            } else {
+                mostrarResultadosBusqueda(clientes);
+            }
         } catch (error) {
             console.error("Error en búsqueda:", error);
             alert("Error al buscar cliente");
@@ -90,12 +116,22 @@ function inicializarEventosCaso() {
             return;
         }
 
+        // Limpiar campos del caso anterior
+        document.getElementById("noCaso").value = "(Nuevo)";
+        document.getElementById("fechaInicio").value = "";
+        document.getElementById("fechaFin").value = "";
+        document.getElementById("especializacion").value = "";
+        document.getElementById("valor").value = "";
+
+        // Habilitar campos para nuevo caso
         document.getElementById("fechaInicio").disabled = false;
         document.getElementById("especializacion").disabled = false;
         document.getElementById("valor").disabled = false;
+        document.getElementById("btnAcuerdoPago").disabled = false;
         btnGuardarCaso.disabled = false;
+        btnCrearCaso.disabled = true;
 
-        cargarEspecializaciones();
+        await cargarEspecializaciones();
 
         modoEdicion = true;
         casoSeleccionado = null;
@@ -124,7 +160,7 @@ function inicializarEventosCaso() {
                 },
                 body: JSON.stringify({
                     fechaInicio: fechaInicio,
-                    fechaFin: null,
+                    fechaFin: null,  // Siempre NULL al crear
                     valor: valor,
                     codEspecializacion: codEspecializacion,
                     codCliente: clienteSeleccionado.codCliente,
@@ -134,10 +170,25 @@ function inicializarEventosCaso() {
             const result = await response.json();
             if (result.success) {
                 alert(`Caso ${result.noCaso} creado exitosamente`);
-                casoSeleccionado = result;
-                document.getElementById("noCaso").value = result.noCaso;
-                limpiarFormularioCaso();
-                btnCrearCaso.disabled = false;
+                
+                // Recargar el caso creado
+                await cargarCaso(result.noCaso);
+                
+                // Actualizar el select con el nuevo caso
+                const selectNoCaso = document.getElementById("noCaso");
+                const option = document.createElement("option");
+                option.value = result.noCaso;
+                option.textContent = `Caso ${result.noCaso} - ${fechaInicio}`;
+                selectNoCaso.appendChild(option);
+                selectNoCaso.value = result.noCaso;
+                selectNoCaso.disabled = false;
+                
+                // Deshabilitar campos después de guardar
+                document.getElementById("fechaInicio").disabled = true;
+                document.getElementById("especializacion").disabled = true;
+                document.getElementById("valor").disabled = true;
+                document.getElementById("btnGuardarCaso").disabled = true;
+                document.getElementById("btnCrearCaso").disabled = false;
             }
         } catch (error) {
             console.error("Error al crear caso:", error);
@@ -148,6 +199,31 @@ function inicializarEventosCaso() {
     nombreApellidoInput.addEventListener("keypress", (e) => {
         if (e.key === "Enter") {
             btnBuscarCliente.click();
+        }
+    });
+
+    // Botón Acuerdo de Pago
+    const btnAcuerdoPago = document.getElementById("btnAcuerdoPago");
+    btnAcuerdoPago.addEventListener("click", () => {
+        if (!casoSeleccionado || !casoSeleccionado.noCaso) {
+            alert("Debe guardar el caso primero antes de crear un acuerdo de pago.");
+            return;
+        }
+        alert("La funcionalidad de Acuerdo de Pago no está implementada aún.");
+    });
+
+    // Botón Crear Cliente
+    const btnCrearCliente = document.getElementById("btnCrearCliente");
+    btnCrearCliente.addEventListener("click", () => {
+        alert("La funcionalidad de creación de cliente no está implementada aún.");
+    });
+
+    // Select de casos - cambiar caso cuando se selecciona de la lista
+    const selectNoCaso = document.getElementById("noCaso");
+    selectNoCaso.addEventListener("change", async (e) => {
+        const noCaso = e.target.value;
+        if (noCaso && noCaso !== "") {
+            await cargarCaso(parseInt(noCaso));
         }
     });
 }
@@ -345,13 +421,49 @@ function mostrarResultadosBusqueda(clientes) {
     container.classList.add("mostrar");
 }
 
-function seleccionarCliente(cliente) {
+async function seleccionarCliente(cliente) {
     clienteSeleccionado = cliente;
     document.getElementById("nDocumento").value = cliente.nDocumento;
     document.getElementById("nombreApellidoCliente").value =
         `${cliente.nomCliente} ${cliente.apellCliente}`;
     document.getElementById("resultadosBusquedaCliente").classList.remove("mostrar");
     document.getElementById("btnCrearCaso").disabled = false;
+
+    // Cargar último caso activo y lista de casos del cliente
+    try {
+        // Obtener último caso activo
+        const responseUltimo = await fetch(`${API_BASE_URL}/caso/ultimo/${cliente.codCliente}`);
+        const ultimoCaso = await responseUltimo.json();
+
+        // Obtener todos los casos activos para el dropdown
+        const responseCasos = await fetch(`${API_BASE_URL}/caso/activos/${cliente.codCliente}`);
+        const casosActivos = await responseCasos.json();
+
+        const selectNoCaso = document.getElementById("noCaso");
+        selectNoCaso.innerHTML = '<option value="">-- Seleccionar --</option>';
+        
+        // Poblar lista desplegable con casos activos
+        casosActivos.forEach(caso => {
+            const option = document.createElement("option");
+            option.value = caso.noCaso;
+            option.textContent = `Caso ${caso.noCaso} - ${caso.fechaInicio}`;
+            selectNoCaso.appendChild(option);
+        });
+
+        // Si hay último caso, cargarlo automáticamente
+        if (ultimoCaso && ultimoCaso.noCaso) {
+            selectNoCaso.value = ultimoCaso.noCaso;
+            selectNoCaso.disabled = false;
+            await cargarCaso(ultimoCaso.noCaso);
+        } else {
+            // No hay casos activos, habilitar creación
+            selectNoCaso.disabled = true;
+            limpiarFormularioCaso();
+        }
+    } catch (error) {
+        console.error("Error al cargar casos del cliente:", error);
+        document.getElementById("noCaso").disabled = true;
+    }
 }
 
 // Funciones para el caso
@@ -362,20 +474,26 @@ async function cargarCaso(noCaso) {
         const caso = await response.json();
 
         casoSeleccionado = caso;
-        document.getElementById("noCaso").value = caso.noCaso;
+        
+        // Cargar especializaciones primero para poder seleccionar la correcta
+        await cargarEspecializaciones();
+        
         document.getElementById("fechaInicio").value = caso.fechaInicio;
         document.getElementById("fechaFin").value = caso.fechaFin || "";
         document.getElementById("valor").value = caso.valor;
         document.getElementById("especializacion").value = caso.codEspecializacion;
         document.getElementById("noCasoExp").value = caso.noCaso;
 
-        // Si el caso tiene fecha fin, deshabilitar edición
-        if (caso.fechaFin) {
-            document.getElementById("fechaInicio").disabled = true;
-            document.getElementById("especializacion").disabled = true;
-            document.getElementById("valor").disabled = true;
-            document.getElementById("btnGuardarCaso").disabled = true;
-        }
+        // Modo consulta: deshabilitar todos los campos de edición
+        document.getElementById("fechaInicio").disabled = true;
+        document.getElementById("especializacion").disabled = true;
+        document.getElementById("valor").disabled = true;
+        document.getElementById("fechaFin").disabled = true;
+        document.getElementById("btnGuardarCaso").disabled = true;
+        document.getElementById("btnAcuerdoPago").disabled = false;
+        document.getElementById("btnCrearCaso").disabled = false;
+
+        modoEdicion = false;
     } catch (error) {
         console.error("Error al cargar caso:", error);
         alert("Error al cargar caso");
@@ -387,20 +505,53 @@ async function cargarEspecializaciones() {
         const response = await fetch(`${API_BASE_URL}/especializacion/`);
         const especializaciones = await response.json();
 
-        const input = document.getElementById("especializacion");
-        input.value = "";
+        const select = document.getElementById("especializacion");
+        
+        // Guardar el valor actual si existe
+        const valorActual = select.value;
+        
+        select.innerHTML = '<option value="">-- Seleccionar --</option>';
+        
+        especializaciones.forEach(esp => {
+            const option = document.createElement("option");
+            option.value = esp.codEspecializacion;
+            option.textContent = esp.nomEspecializacion;
+            select.appendChild(option);
+        });
+
+        // Restaurar el valor si existía
+        if (valorActual) {
+            select.value = valorActual;
+        }
     } catch (error) {
         console.error("Error al cargar especializaciones:", error);
     }
 }
 
 function limpiarFormularioCaso() {
-    document.getElementById("noCaso").value = "";
+    const selectNoCaso = document.getElementById("noCaso");
+    selectNoCaso.innerHTML = '<option value="">-- Seleccionar --</option>';
+    selectNoCaso.disabled = true;
+    
     document.getElementById("fechaInicio").value = "";
     document.getElementById("fechaFin").value = "";
     document.getElementById("especializacion").value = "";
     document.getElementById("valor").value = "";
     document.getElementById("nDocumento").value = "";
+    document.getElementById("nombreApellidoCliente").value = "";
+    
+    // Deshabilitar todos los campos excepto nombre cliente
+    document.getElementById("fechaInicio").disabled = true;
+    document.getElementById("especializacion").disabled = true;
+    document.getElementById("valor").disabled = true;
+    document.getElementById("fechaFin").disabled = true;
+    document.getElementById("nDocumento").disabled = true;
+    document.getElementById("btnCrearCaso").disabled = true;
+    document.getElementById("btnGuardarCaso").disabled = true;
+    document.getElementById("btnAcuerdoPago").disabled = true;
+    
+    clienteSeleccionado = null;
+    casoSeleccionado = null;
     modoEdicion = false;
 }
 

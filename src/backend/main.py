@@ -460,13 +460,13 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
         # Revisar el select, creo que está bien y me funciona bien en consola, pero igual revisar bien con varios tipos de casos
         query = """
             SELECT e.codEspecializacion, e.pasoEtapa, e.noCaso, e.consecExpe,
-                   e.codLugar, e.cedula, e.fechaEtapa,
-                   et.nomEtapa, l.nomLugar, ee.idImpugna, ee.nInstancia
+                    e.codLugar, e.cedula, e.fechaEtapa,
+                    et.nomEtapa, l.nomLugar, ee.idImpugna, ee.nInstancia
             FROM Expediente e
-            LEFT JOIN EtapaProcesal et ON e.codEtapa = et.codEtapa
             LEFT JOIN Lugar l ON e.codLugar = l.codLugar
             LEFT JOIN Especia_Etapa ee ON e.codEspecializacion = ee.codEspecializacion 
-                                       AND e.pasoEtapa = ee.pasoEtapa
+                AND e.pasoEtapa = ee.pasoEtapa
+            LEFT JOIN EtapaProcesal et ON ee.codEtapa = et.codEtapa
             WHERE e.codEspecializacion = :codEsp
             AND e.pasoEtapa = :pasoEtapa
             AND e.noCaso = :noCaso
