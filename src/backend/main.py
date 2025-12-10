@@ -863,6 +863,10 @@ def upload_documento(
     connection = Depends(get_db_connection)
 ):
     try:
+        # Validar que consecExpe sea válido
+        if not consecExpe or consecExpe <= 0:
+            raise ValueError("consecExpe debe ser un número positivo válido")
+        
         # Crear carpeta de almacenamiento si no existe
         base_dir = os.path.join(os.getcwd(), "storage", "documents", str(noCaso), str(consecExpe))
         os.makedirs(base_dir, exist_ok=True)
@@ -890,7 +894,8 @@ def upload_documento(
             "noCaso": noCaso,
             "consecExpe": consecExpe
         })
-        max_doc = cursor.fetchone()[0]
+        result = cursor.fetchone()
+        max_doc = result[0] if result and result[0] else None
         nuevo_conDoc = (max_doc if max_doc else 0) + 1
 
         cursor.execute(
@@ -909,7 +914,13 @@ def upload_documento(
 
         return {"success": True, "conDoc": nuevo_conDoc, "ubicaDoc": ubica}
     except Exception as e:
-        connection.rollback()
+        try:
+            connection.rollback()
+        except:
+            pass
+        import traceback
+        error_detail = str(e) + " | " + traceback.format_exc()
+        print(f"Error en upload_documento: {error_detail}")
         raise HTTPException(status_code=500, detail=f"Error subiendo documento: {str(e)}")
 
 

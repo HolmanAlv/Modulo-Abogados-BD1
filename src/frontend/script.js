@@ -380,8 +380,8 @@ function inicializarEventosExpediente() {
 
     if (btnAdjuntarDoc) {
         btnAdjuntarDoc.addEventListener("click", () => {
-        if (!expedienteSeleccionado) {
-            alert('Seleccione primero un expediente');
+        if (!expedienteSeleccionado && !document.getElementById('consecExpe').value) {
+            alert('Cree o seleccione un expediente primero');
             return;
         }
 
@@ -393,10 +393,15 @@ function inicializarEventosExpediente() {
             if (!file) return;
 
             const form = new FormData();
-            form.append('codEspecializacion', expedienteSeleccionado.codEspecializacion || document.getElementById('especializacion').value);
-            form.append('pasoEtapa', expedienteSeleccionado.pasoEtapa || document.getElementById('noEtapa').value);
-            form.append('noCaso', expedienteSeleccionado.noCaso || document.getElementById('noCaso').value);
-            form.append('consecExpe', expedienteSeleccionado.consecExpe || document.getElementById('consecExpe').value || 0);
+            const codEsp = expedienteSeleccionado?.codEspecializacion || document.getElementById('especializacion').value;
+            const pasoEtapa = parseInt(expedienteSeleccionado?.pasoEtapa || document.getElementById('noEtapa').value || 1);
+            const noCaso = parseInt(expedienteSeleccionado?.noCaso || document.getElementById('noCaso').value);
+            const consecExpe = parseInt(expedienteSeleccionado?.consecExpe || document.getElementById('consecExpe').value || 0);
+            
+            form.append('codEspecializacion', codEsp);
+            form.append('pasoEtapa', pasoEtapa);
+            form.append('noCaso', noCaso);
+            form.append('consecExpe', consecExpe);
             form.append('file', file);
 
             try {
@@ -406,16 +411,17 @@ function inicializarEventosExpediente() {
                 });
                 const data = await resp.json();
                 if (data.success) {
-                    alert('Documento subido');
-                    if (expedienteSeleccionado) {
-                        cargarExpedienteDetalle(expedienteSeleccionado.consecExpe);
+                    alert('Documento subido exitosamente');
+                    const consecExpeVal = expedienteSeleccionado?.consecExpe || document.getElementById('consecExpe').value;
+                    if (consecExpeVal) {
+                        cargarExpedienteDetalle(parseInt(consecExpeVal));
                     }
                 } else {
-                    alert('Error subiendo documento');
+                    alert('Error: ' + (data.detail || 'Error subiendo documento'));
                 }
             } catch (err) {
                 console.error('Error subiendo documento:', err);
-                alert('Error subiendo documento');
+                alert('Error: ' + err.message);
             }
         };
         input.click();
@@ -462,25 +468,33 @@ function inicializarEventosExpediente() {
                 input.onchange = async () => {
                     const file = input.files[0];
                     if (!file) return;
-                    if (!expedienteSeleccionado) {
-                        alert('Seleccione o cree un expediente primero');
+                    if (!expedienteSeleccionado && !document.getElementById('consecExpe').value) {
+                        alert('Cree o seleccione un expediente primero');
                         return;
                     }
 
                     const form = new FormData();
-                    form.append('codEspecializacion', expedienteSeleccionado.codEspecializacion || document.getElementById('especializacion').value);
-                    form.append('pasoEtapa', expedienteSeleccionado.pasoEtapa || document.getElementById('noEtapa').value);
-                    form.append('noCaso', expedienteSeleccionado.noCaso || document.getElementById('noCaso').value);
-                    form.append('consecExpe', expedienteSeleccionado.consecExpe || document.getElementById('consecExpe').value || 0);
+                    const codEsp = expedienteSeleccionado?.codEspecializacion || document.getElementById('especializacion').value;
+                    const pasoEtapa = parseInt(expedienteSeleccionado?.pasoEtapa || document.getElementById('noEtapa').value || 1);
+                    const noCaso = parseInt(expedienteSeleccionado?.noCaso || document.getElementById('noCaso').value);
+                    const consecExpe = parseInt(expedienteSeleccionado?.consecExpe || document.getElementById('consecExpe').value || 0);
+                    
+                    form.append('codEspecializacion', codEsp);
+                    form.append('pasoEtapa', pasoEtapa);
+                    form.append('noCaso', noCaso);
+                    form.append('consecExpe', consecExpe);
                     form.append('file', file);
 
                     try {
                         const resp = await fetch(`${API_BASE_URL}/documento/upload`, { method: 'POST', body: form });
                         const data = await resp.json();
                         if (data.success) {
-                            alert('Documento subido');
-                            cargarExpedienteDetalle(expedienteSeleccionado.consecExpe);
-                        } else alert('Error subiendo documento');
+                            alert('Documento subido exitosamente');
+                            const consecExpeVal = expedienteSeleccionado?.consecExpe || document.getElementById('consecExpe').value;
+                            if (consecExpeVal) {
+                                cargarExpedienteDetalle(parseInt(consecExpeVal));
+                            }
+                        } else alert('Error: ' + (data.detail || 'Error subiendo documento'));
                     } catch (err) {
                         console.error('Error subiendo documento:', err);
                         alert('Error subiendo documento');
