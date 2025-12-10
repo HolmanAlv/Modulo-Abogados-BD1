@@ -1,6 +1,6 @@
 /*==============================================================*/
 /* DBMS name:      ORACLE Version 12c                           */
-/* Created on:     30/11/2025 3:28:49 p. m.                     */
+/* Created on:     30/11/2025 3:28:49 p.ï¿½m.                     */
 /*==============================================================*/
 
 
@@ -248,7 +248,7 @@ create table DOCUMENTO (
    NOCASO               NUMBER(5,0)           not null,
    CONSECEXPE           NUMBER(4,0)           not null,
    CONDOC               NUMBER(4,0)           not null,
-   UBICADOC             VARCHAR2(50)          not null,
+   UBICADOC             VARCHAR2(250)          not null,
    constraint PK_DOCUMENTO primary key (CODESPECIALIZACION, PASOETAPA, NOCASO, CONSECEXPE, CONDOC)
 );
 
