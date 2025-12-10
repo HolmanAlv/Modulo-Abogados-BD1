@@ -6,6 +6,9 @@ let clienteSeleccionado = null;
 let casoSeleccionado = null;
 let expedienteSeleccionado = null;
 let modoEdicion = false;
+let expedientesCaso = [];
+let indiceExpedienteActual = 0;
+let etapaActualGuardada = true; 
 
 document.addEventListener("DOMContentLoaded", () => {
     inicializarFechaHeader();
@@ -16,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
     inicializarEventosModal();
 });
 
-// Inicializar estado inicial de todos los campos
+
 function inicializarEstadoInicial() {
     // Todos los campos deshabilitados excepto el campo de nombre cliente
     document.getElementById("noCaso").disabled = true;
@@ -29,11 +32,17 @@ function inicializarEstadoInicial() {
     document.getElementById("btnGuardarCaso").disabled = true;
     document.getElementById("btnAcuerdoPago").disabled = true;
     
-    // Campo de nombre cliente habilitado
+    // Este es el nombre de cliente, habilitado a menos que querqamos cambiar su funcionamiento
+    // Si lo cambian dejen aca abajo los habilitados para no perdernos
     document.getElementById("nombreApellidoCliente").disabled = false;
+    // Make suceso/resultado read-only by default so they can only be edited via modal (double-click)
+    const sucesoEl = document.getElementById("suceso");
+    const resultadoEl = document.getElementById("resultado");
+    if (sucesoEl) sucesoEl.readOnly = true;
+    if (resultadoEl) resultadoEl.readOnly = true;
 }
 
-// Mostrar fecha actual en el header
+// Solamente para que en el encabezado se vea la fecha actual, no más
 function inicializarFechaHeader() {
     const dateElement = document.getElementById("currentDate");
     if (dateElement) {
@@ -43,7 +52,7 @@ function inicializarFechaHeader() {
     }
 }
 
-// Para cada cambio de pestaña
+// Pasa cada que se cambia de pestaña
 function inicializarEventosPestañas() {
     const tabBtns = document.querySelectorAll(".tab-btn");
     const tabContents = document.querySelectorAll(".tab-content");
@@ -58,7 +67,7 @@ function inicializarEventosPestañas() {
             const tabId = btn.getAttribute("data-tab");
             document.getElementById(tabId).classList.add("active");
 
-            // cargar datos cuando es expediente
+            // carga datos cuando es expediente
             if (tabId === "expediente" && casoSeleccionado) {
                 cargarExpedientesCaso(casoSeleccionado.noCaso);
             }
@@ -106,7 +115,8 @@ function inicializarEventosCaso() {
             }
         } catch (error) {
             console.error("Error en búsqueda:", error);
-            alert("Error al buscar cliente");
+            alert("Error al buscar cliente"); // Revisen bien los metodos tambien porque este error me está saliendo mucho >:c
+            // listo :)
         }
     });
 
@@ -116,14 +126,12 @@ function inicializarEventosCaso() {
             return;
         }
 
-        // Limpiar campos del caso anterior
         document.getElementById("noCaso").value = "(Nuevo)";
         document.getElementById("fechaInicio").value = "";
         document.getElementById("fechaFin").value = "";
         document.getElementById("especializacion").value = "";
         document.getElementById("valor").value = "";
 
-        // Habilitar campos para nuevo caso
         document.getElementById("fechaInicio").disabled = false;
         document.getElementById("especializacion").disabled = false;
         document.getElementById("valor").disabled = false;
@@ -202,7 +210,7 @@ function inicializarEventosCaso() {
         }
     });
 
-    // Botón Acuerdo de Pago
+    // Botón Para el Acuerdo de Pago (recuerden que este no hay que implementarlo entonces dejenlo quieto
     const btnAcuerdoPago = document.getElementById("btnAcuerdoPago");
     btnAcuerdoPago.addEventListener("click", () => {
         if (!casoSeleccionado || !casoSeleccionado.noCaso) {
@@ -212,7 +220,7 @@ function inicializarEventosCaso() {
         alert("La funcionalidad de Acuerdo de Pago no está implementada aún.");
     });
 
-    // Botón Crear Cliente
+    // Botón Crear Cliente (recuerden que este no hay que implementarlo entonces dejenlo quieto)
     const btnCrearCliente = document.getElementById("btnCrearCliente");
     btnCrearCliente.addEventListener("click", () => {
         alert("La funcionalidad de creación de cliente no está implementada aún.");
@@ -241,25 +249,65 @@ function inicializarEventosExpediente() {
             return;
         }
 
-        document.getElementById("fechaEtapa").disabled = false;
-        document.getElementById("abogado").disabled = false;
-        document.getElementById("ciudad").disabled = false;
-        document.getElementById("entidad").disabled = false;
-        document.getElementById("impugnacion").disabled = false;
-        document.getElementById("suceso").disabled = false;
-        document.getElementById("resultado").disabled = false;
-        document.getElementById("btnAnteriorSuceso").disabled = false;
-        document.getElementById("btnSiguienteSuceso").disabled = false;
-        document.getElementById("btnAnteriorResultado").disabled = false;
-        document.getElementById("btnSiguienteResultado").disabled = false;
-        document.getElementById("btnAdjuntarDoc").disabled = false;
-        btnGuardarExpediente.disabled = false;
+        if (casoSeleccionado && casoSeleccionado.fechaFin) {
+            alert('El caso está cerrado; no se pueden crear expedientes.');
+            return;
+        }
 
-        modoEdicion = true;
+        // La etapa anterior debió de haberse guardado
+        if (!etapaActualGuardada) {
+            alert('Debe guardar la etapa actual antes de crear una nueva.');
+            return;
+        }
+
+        try {
+            const today = new Date().toISOString().slice(0,10);
+            const resp = await fetch(`${API_BASE_URL}/expediente/crear`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ noCaso: casoSeleccionado.noCaso, fechaEtapa: today })
+            });
+            const data = await resp.json();
+            if (!data.success) throw new Error('Error al crear expediente');
+
+            // Configurar formulario para la nueva etapa
+            document.getElementById("consecExpe").value = data.consecExpe;
+            document.getElementById("consecExpe").disabled = true;
+            document.getElementById("noEtapa").value = '1';
+            document.getElementById("noEtapa").disabled = true;
+            document.getElementById("fechaEtapa").value = today;
+            document.getElementById("fechaEtapa").disabled = true;
+
+            // Carga algunas listas relaacionadas
+            const codEsp = casoSeleccionado.codEspecializacion;
+            await cargarEspeciaEtapaYListas(codEsp, 1);
+
+            // Sobre los campos que sean permitidos que s pueda editar
+            document.getElementById("abogado").disabled = false;
+            document.getElementById("ciudad").disabled = false;
+            document.getElementById("entidad").disabled = false;
+            document.getElementById("impugnacion").disabled = true;
+            // Keep suceso/resultado read-only so editing requires the modal (double-click)
+            document.getElementById("suceso").readOnly = true;
+            document.getElementById("resultado").readOnly = true;
+            document.getElementById("btnAnteriorSuceso").disabled = false;
+            document.getElementById("btnSiguienteSuceso").disabled = false;
+            document.getElementById("btnAdjuntarDoc").disabled = false;
+            btnGuardarExpediente.disabled = false;
+
+            modoEdicion = true;
+            etapaActualGuardada = false; // Marcar que hay etapa sin guardar
+
+            // Mantener lista local de expedientes para navegación
+            expedientesCaso.unshift({ consecExpe: data.consecExpe, noCaso: casoSeleccionado.noCaso, fechaEtapa: today });
+            indiceExpedienteActual = 0;
+            expedienteSeleccionado = null;
+        } catch (err) {
+            console.error(err);
+            alert('Error creando expediente');
+        }
     });
 
-    //falta estas funcionalidades
-    // Ya no ;)
     btnGuardarExpediente.addEventListener("click", async () => {
         if (!casoSeleccionado) {
             alert("Seleccione un caso antes de guardar el expediente");
@@ -303,6 +351,7 @@ function inicializarEventosExpediente() {
             const data = await resp.json();
             if (data.success) {
                 alert('Expediente guardado');
+                etapaActualGuardada = true; // Marcar que la etapa fue guardada
                 if (payload.consecExpe && payload.consecExpe > 0) {
                     cargarExpedienteDetalle(payload.consecExpe);
                 }
@@ -329,7 +378,8 @@ function inicializarEventosExpediente() {
         }
     });
 
-    btnAdjuntarDoc.addEventListener("click", () => {
+    if (btnAdjuntarDoc) {
+        btnAdjuntarDoc.addEventListener("click", () => {
         if (!expedienteSeleccionado) {
             alert('Seleccione primero un expediente');
             return;
@@ -369,7 +419,77 @@ function inicializarEventosExpediente() {
             }
         };
         input.click();
-    });
+        });
+    }
+
+    // PAra la navegación de expedientes, los anteriores y los siguientes
+    const btnAnt = document.getElementById('btnAnteriorSuceso');
+    const btnSig = document.getElementById('btnSiguienteSuceso');
+    if (btnAnt && btnSig) {
+        btnAnt.addEventListener('click', () => {
+            if (expedientesCaso.length === 0) return;
+            if (indiceExpedienteActual < expedientesCaso.length - 1) {
+                indiceExpedienteActual += 1;
+                cargarExpedienteDetalle(expedientesCaso[indiceExpedienteActual].consecExpe);
+            }
+        });
+        btnSig.addEventListener('click', () => {
+            if (expedientesCaso.length === 0) return;
+            if (indiceExpedienteActual > 0) {
+                indiceExpedienteActual -= 1;
+                cargarExpedienteDetalle(expedientesCaso[indiceExpedienteActual].consecExpe);
+            }
+        });
+    }
+
+    const selCiudad = document.getElementById('ciudad');
+    if (selCiudad) {
+        selCiudad.addEventListener('change', (e) => {
+            const cod = e.target.value;
+            if (cod) cargarEntidades(cod);
+        });
+    }
+
+    // Son los botoness de agregar documento en la UI (varios slots)
+    const botonesDocs = document.querySelectorAll('.btn-agregar-doc');
+    if (botonesDocs && botonesDocs.length > 0) {
+        botonesDocs.forEach(b => {
+            b.addEventListener('click', () => {
+                // reutilizar flujo de subida: pedir archivo y subir para expediente seleccionado
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.pdf,.jpg,.png,.doc,.docx';
+                input.onchange = async () => {
+                    const file = input.files[0];
+                    if (!file) return;
+                    if (!expedienteSeleccionado) {
+                        alert('Seleccione o cree un expediente primero');
+                        return;
+                    }
+
+                    const form = new FormData();
+                    form.append('codEspecializacion', expedienteSeleccionado.codEspecializacion || document.getElementById('especializacion').value);
+                    form.append('pasoEtapa', expedienteSeleccionado.pasoEtapa || document.getElementById('noEtapa').value);
+                    form.append('noCaso', expedienteSeleccionado.noCaso || document.getElementById('noCaso').value);
+                    form.append('consecExpe', expedienteSeleccionado.consecExpe || document.getElementById('consecExpe').value || 0);
+                    form.append('file', file);
+
+                    try {
+                        const resp = await fetch(`${API_BASE_URL}/documento/upload`, { method: 'POST', body: form });
+                        const data = await resp.json();
+                        if (data.success) {
+                            alert('Documento subido');
+                            cargarExpedienteDetalle(expedienteSeleccionado.consecExpe);
+                        } else alert('Error subiendo documento');
+                    } catch (err) {
+                        console.error('Error subiendo documento:', err);
+                        alert('Error subiendo documento');
+                    }
+                };
+                input.click();
+            });
+        });
+    }
 }
 
 // Eventos del modal 
@@ -450,13 +570,11 @@ async function seleccionarCliente(cliente) {
             selectNoCaso.appendChild(option);
         });
 
-        // Si hay último caso, cargarlo automáticamente
         if (ultimoCaso && ultimoCaso.noCaso) {
             selectNoCaso.value = ultimoCaso.noCaso;
             selectNoCaso.disabled = false;
             await cargarCaso(ultimoCaso.noCaso);
         } else {
-            // No hay casos activos, habilitar creación
             selectNoCaso.disabled = true;
             limpiarFormularioCaso();
         }
@@ -475,7 +593,6 @@ async function cargarCaso(noCaso) {
 
         casoSeleccionado = caso;
         
-        // Cargar especializaciones primero para poder seleccionar la correcta
         await cargarEspecializaciones();
         
         document.getElementById("fechaInicio").value = caso.fechaInicio;
@@ -561,12 +678,18 @@ async function cargarExpedientesCaso(noCaso) {
         const response = await fetch(`${API_BASE_URL}/expediente/caso/${noCaso}`);
         const expedientes = await response.json();
 
-        if (expedientes.length > 0) {
-            cargarExpedienteDetalle(expedientes[0].consecExpe);
+        expedientesCaso = expedientes || [];
+        if (expedientesCaso.length > 0) {
+            indiceExpedienteActual = 0;
+            cargarExpedienteDetalle(expedientesCaso[0].consecExpe);
             document.getElementById("btnCrearExpediente").disabled = true;
         } else {
             document.getElementById("btnCrearExpediente").disabled = false;
             limpiarFormularioExpediente();
+        }
+        if (casoSeleccionado && casoSeleccionado.fechaFin) {
+            document.getElementById('btnCrearExpediente').disabled = true;
+            document.getElementById('btnGuardarExpediente').disabled = true;
         }
     } catch (error) {
         console.error("Error al cargar expedientes:", error);
@@ -577,19 +700,85 @@ async function cargarExpedienteDetalle(consecExpe) {
     try {
         const response = await fetch(`${API_BASE_URL}/expediente/${consecExpe}`);
         const expediente = await response.json();
-
         expedienteSeleccionado = expediente;
         document.getElementById("consecExpe").value = expediente.consecExpe;
-        document.getElementById("noEtapa").value = expediente.codEtapa;
-        document.getElementById("fechaEtapa").value = expediente.fechaEtapa;
-        document.getElementById("nomEtapa").value = expediente.nomEtapa;
-        document.getElementById("suceso").value = expediente.conSuceso || "";
-        document.getElementById("resultado").value = expediente.conResul || "";
+        document.getElementById("noEtapa").value = expediente.pasoEtapa || expediente.codEtapa || '';
+        document.getElementById("fechaEtapa").value = expediente.fechaEtapa || '';
+        document.getElementById("nomEtapa").value = expediente.nomEtapa || '';
+
+        const sucesosText = (expediente.sucesos || []).map(s => s.descSuceso).join('\n\n');
+        const resultadosText = (expediente.resultados || []).map(r => r.descResul).join('\n\n');
+        document.getElementById("suceso").value = sucesosText;
+        document.getElementById("resultado").value = resultadosText;
 
         document.getElementById("consecExpe").disabled = true;
         document.getElementById("noEtapa").disabled = true;
         document.getElementById("fechaEtapa").disabled = true;
         document.getElementById("nomEtapa").disabled = true;
+
+        const codEsp = expediente.codEspecializacion || document.getElementById('especializacion').value || (casoSeleccionado && casoSeleccionado.codEspecializacion);
+        if (codEsp) {
+            await cargarEspeciaEtapaYListas(codEsp, expediente.pasoEtapa || expediente.codEtapa || 1);
+        }
+
+        // Seleccionar abogado si viene
+        if (expediente.cedula) {
+            const selAb = document.getElementById('abogado');
+            selAb.value = expediente.cedula;
+        }
+
+        if (expediente.codLugar) {
+            try {
+                const respLugar = await fetch(`${API_BASE_URL}/lugar/${expediente.codLugar}`);
+                if (respLugar.ok) {
+                    const lugarDet = await respLugar.json();
+                    const lugPadre = lugarDet.lugCodLugar; 
+                    if (!lugPadre) {
+                        // el codLugar es ciudad
+                        document.getElementById('ciudad').value = lugarDet.codLugar;
+                        await cargarEntidades(lugarDet.codLugar);
+                        document.getElementById('entidad').value = '';
+                    } else {
+                        // el codLugar es entidad; seleccionar ciudad padre y la entidad
+                        document.getElementById('ciudad').value = lugPadre;
+                        await cargarEntidades(lugPadre);
+                        document.getElementById('entidad').value = lugarDet.codLugar;
+                    }
+                }
+            } catch (err) {
+                console.error('Error obteniendo lugar detalle:', err);
+            }
+        }
+
+        if (expediente.idImpugna) {
+            const sel = document.getElementById('impugnacion');
+            sel.value = expediente.idImpugna;
+            sel.disabled = false;
+        } else {
+            document.getElementById('impugnacion').value = '';
+            document.getElementById('impugnacion').disabled = true;
+        }
+
+        if (expediente.nInstancia) {
+            document.getElementById('instancia').value = expediente.nInstancia === 1 ? 'Primera' : expediente.nInstancia === 2 ? 'Segunda' : expediente.nInstancia;
+        }
+
+        // Si el caso está cerrado no se debe de permitir edición
+        if (casoSeleccionado && casoSeleccionado.fechaFin) {
+            document.getElementById('abogado').disabled = true;
+            document.getElementById('ciudad').disabled = true;
+            document.getElementById('entidad').disabled = true;
+            document.getElementById('impugnacion').disabled = true;
+            const sEl = document.getElementById('suceso');
+            const rEl = document.getElementById('resultado');
+            if (sEl) sEl.readOnly = true;
+            if (rEl) rEl.readOnly = true;
+            document.getElementById('btnGuardarExpediente').disabled = true;
+            document.getElementById('btnCrearExpediente').disabled = true;
+        }
+
+        const idx = expedientesCaso.findIndex(e => e.consecExpe == expediente.consecExpe);
+        if (idx !== -1) indiceExpedienteActual = idx;
     } catch (error) {
         console.error("Error al cargar expediente detalle:", error);
     }
@@ -609,6 +798,99 @@ function limpiarFormularioExpediente() {
     document.getElementById("resultado").value = "";
 }
 
+async function cargarAbogadosEspecializacion(codEspecializacion) {
+    try {
+        const resp = await fetch(`${API_BASE_URL}/abogado/especializacion/${codEspecializacion}`);
+        const abogados = await resp.json();
+        const sel = document.getElementById('abogado');
+        sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+        abogados.forEach(a => {
+            const opt = document.createElement('option');
+            opt.value = a.cedula;
+            opt.textContent = `${a.apellido}, ${a.nombre}`;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando abogados:', err);
+    }
+}
+
+async function cargarCiudades() {
+    try {
+        const resp = await fetch(`${API_BASE_URL}/lugar/ciudades`);
+        const ciudades = await resp.json();
+        const sel = document.getElementById('ciudad');
+        sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+        ciudades.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.codLugar;
+            opt.textContent = c.nomLugar;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando ciudades:', err);
+    }
+}
+
+async function cargarEntidades(codCiudad) {
+    try {
+        const resp = await fetch(`${API_BASE_URL}/lugar/entidades/${codCiudad}`);
+        const entidades = await resp.json();
+        const sel = document.getElementById('entidad');
+        sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+        entidades.forEach(e => {
+            const opt = document.createElement('option');
+            opt.value = e.codLugar;
+            opt.textContent = e.nomLugar;
+            sel.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Error cargando entidades:', err);
+    }
+}
+
+async function cargarEspeciaEtapaYListas(codEsp, paso) {
+    try {
+        const respEt = await fetch(`${API_BASE_URL}/especia-etapa/${codEsp}/${paso}`);
+        if (respEt.ok) {
+            const etapa = await respEt.json();
+            document.getElementById('nomEtapa').value = etapa.nomEtapa || '';
+
+            if (etapa.nomEtapa && etapa.nomEtapa.toLowerCase().includes('sentenc')) {
+                document.getElementById('instancia').value = 'Primera';
+            } else if (etapa.codEtapa && etapa.codEtapa.toLowerCase().includes('impugn')) {
+                document.getElementById('instancia').value = 'Segunda';
+            } else {
+                document.getElementById('instancia').value = '';
+            }
+
+            if (etapa.idImpugna) {
+                document.getElementById('impugnacion').disabled = false;
+                const respAll = await fetch(`${API_BASE_URL}/especia-etapa/${codEsp}`);
+                if (respAll.ok) {
+                    const all = await respAll.json();
+                    const sel = document.getElementById('impugnacion');
+                    sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+                    all.filter(x => x.idImpugna).forEach(x => {
+                        const opt = document.createElement('option');
+                        opt.value = x.idImpugna;
+                        opt.textContent = x.idImpugna;
+                        sel.appendChild(opt);
+                    });
+                }
+            } else {
+                document.getElementById('impugnacion').disabled = true;
+                document.getElementById('impugnacion').innerHTML = '<option value="">-- Seleccionar --</option>';
+            }
+        }
+
+        await cargarAbogadosEspecializacion(codEsp);
+        await cargarCiudades();
+    } catch (err) {
+        console.error('Error cargando datos de etapa:', err);
+    }
+}
+
 // Funciones del modal
 function abrirEditorModal(campo, titulo) {
     const modal = document.getElementById("modalEditor");
@@ -620,7 +902,7 @@ function abrirEditorModal(campo, titulo) {
     modal.style.display = "flex";
 }
 
-// Para los errores
+// Pa los errores
 
 window.addEventListener("error", (event) => {
     console.error("Error global:", event.error);

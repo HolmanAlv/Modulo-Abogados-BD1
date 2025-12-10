@@ -17,8 +17,8 @@ if os.path.isdir(INSTANT_CLIENT_DIR):
     oracledb.init_oracle_client(lib_dir=INSTANT_CLIENT_DIR)
 
 # Credenciales de conexión de nuestro oracle, no olvidar correr la base de datos primero
-DB_USER = "modulo"
-DB_PASSWORD = "modulo"
+DB_USER = "system"
+DB_PASSWORD = "oracle"
 DB_HOST = "localhost"
 DB_PORT = 1521
 DB_SERVICE = "XEPDB1" 
@@ -145,10 +145,6 @@ class EspeciaEtapa(BaseModel):
 # Poner aca pra lnuestra conexión con oracle, no olviden correr antes nuestro sql claro, Holman lo dejó en la carpeta db
 #Toca en una version mas reciente de oracle porque sino no corre
 def get_db_connection():
-    """
-    Obtiene una conexión a la base de datos Oracle.
-    Se usa como dependencia en los endpoints.
-    """
     try:
         connection = oracledb.connect(
             user=DB_USER,
@@ -161,10 +157,6 @@ def get_db_connection():
 
 @app.get("/api/test-connection")
 def test_connection(connection = Depends(get_db_connection)):
-    """
-    Prueba la conexión a la base de datos Oracle.
-    Ejecuta una consulta simple para verificar que la conexión funciona correctamente.
-    """
     try:
         cursor = connection.cursor()
         cursor.execute("SELECT nomCliente FROM cliente")
@@ -183,10 +175,6 @@ def test_connection(connection = Depends(get_db_connection)):
 # ENDPOINTS del cliente
 @app.get("/api/cliente/buscar/{nombre}/{apellido}")
 def buscar_cliente(nombre: str, apellido: str, connection = Depends(get_db_connection)):
-    """
-    Busca un cliente por nombre y apellido.
-    Retorna la información del cliente si existe.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -216,9 +204,6 @@ def buscar_cliente(nombre: str, apellido: str, connection = Depends(get_db_conne
 
 @app.get("/api/cliente/{documento}")
 def obtener_cliente_por_documento(documento: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene información de un cliente por número de documento.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -247,9 +232,6 @@ def obtener_cliente_por_documento(documento: str, connection = Depends(get_db_co
 
 @app.get("/api/caso/ultimo/{codCliente}")
 def obtener_ultimo_caso_activo(codCliente: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene el último caso activo (sin fecha fin) del cliente.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -278,9 +260,6 @@ def obtener_ultimo_caso_activo(codCliente: str, connection = Depends(get_db_conn
 
 @app.get("/api/caso/activos/{codCliente}")
 def obtener_casos_activos(codCliente: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los casos activos (sin fecha fin) del cliente.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -308,9 +287,6 @@ def obtener_casos_activos(codCliente: str, connection = Depends(get_db_connectio
 
 @app.post("/api/caso/crear")
 def crear_caso(caso: Caso, connection = Depends(get_db_connection)):
-    """
-    Crea un nuevo caso. Genera automáticamente el número de caso (consecutivo).
-    """
     try:
         cursor = connection.cursor()
         
@@ -346,9 +322,6 @@ def crear_caso(caso: Caso, connection = Depends(get_db_connection)):
 
 @app.get("/api/caso/{noCaso}")
 def obtener_caso(noCaso: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene información de un caso específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -376,9 +349,6 @@ def obtener_caso(noCaso: int, connection = Depends(get_db_connection)):
 
 @app.put("/api/caso/{noCaso}")
 def actualizar_caso(noCaso: int, caso: Caso, connection = Depends(get_db_connection)):
-    """
-    Actualiza un caso existente (solo si no tiene fecha fin).
-    """
     try:
         cursor = connection.cursor()
         
@@ -422,9 +392,6 @@ def actualizar_caso(noCaso: int, caso: Caso, connection = Depends(get_db_connect
 
 @app.get("/api/expediente/caso/{noCaso}")
 def obtener_expedientes_caso(noCaso: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los expedientes de un caso específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -450,10 +417,6 @@ def obtener_expedientes_caso(noCaso: int, connection = Depends(get_db_connection
 
 @app.get("/api/expediente/{codEsp}/{pasoEtapa}/{noCaso}/{consecExpe}")
 def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecExpe: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene los detalles completos de un expediente usando su clave compuesta.
-    Clave: (codEspecializacion, pasoEtapa, noCaso, consecExpe)
-    """
     try:
         cursor = connection.cursor()
         
@@ -533,12 +496,82 @@ def obtener_expediente_detalle(codEsp: str, pasoEtapa: int, noCaso: int, consecE
     except oracledb.Error as e:
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
+
+@app.get("/api/expediente/{consecExpe}")
+def obtener_expediente_por_consec(consecExpe: int, connection = Depends(get_db_connection)):
+    try:
+        cursor = connection.cursor()
+        cursor.execute("""
+            SELECT e.codEspecializacion, e.pasoEtapa, e.noCaso, e.consecExpe,
+                   ee.codEtapa, et.nomEtapa, e.codLugar, e.cedula, e.fechaEtapa,
+                   ee.idImpugna, ee.nInstancia
+            FROM Expediente e
+            LEFT JOIN Especia_Etapa ee ON e.codEspecializacion = ee.codEspecializacion AND e.pasoEtapa = ee.pasoEtapa
+            LEFT JOIN EtapaProcesal et ON ee.codEtapa = et.codEtapa
+            WHERE e.consecExpe = :consecExpe
+        """, {"consecExpe": consecExpe})
+        result = cursor.fetchone()
+        cursor.close()
+
+        if result:
+            codEsp = result[0]
+            pasoEtapa = result[1]
+            noCaso = result[2]
+            consec = result[3]
+
+            cursor = connection.cursor()
+            cursor.execute("""
+                SELECT conSuceso, descSuceso FROM Suceso
+                WHERE codEspecializacion = :codEsp
+                AND pasoEtapa = :pasoEtapa
+                AND noCaso = :noCaso
+                AND consecExpe = :consecExpe
+            """, {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consec})
+            sucesos = [{"conSuceso": row[0], "descSuceso": row[1]} for row in cursor.fetchall()]
+
+            cursor.execute("""
+                SELECT conResul, descResul FROM Resultado
+                WHERE codEspecializacion = :codEsp
+                AND pasoEtapa = :pasoEtapa
+                AND noCaso = :noCaso
+                AND consecExpe = :consecExpe
+            """, {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consec})
+            resultados = [{"conResul": row[0], "descResul": row[1]} for row in cursor.fetchall()]
+
+            cursor.execute("""
+                SELECT conDoc, ubicaDoc FROM Documento
+                WHERE codEspecializacion = :codEsp
+                AND pasoEtapa = :pasoEtapa
+                AND noCaso = :noCaso
+                AND consecExpe = :consecExpe
+            """, {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consec})
+            documentos = [{"conDoc": row[0], "ubicaDoc": row[1]} for row in cursor.fetchall()]
+            cursor.close()
+
+            return {
+                "codEspecializacion": result[0],
+                "pasoEtapa": result[1],
+                "noCaso": result[2],
+                "consecExpe": result[3],
+                "codEtapa": result[4],
+                "nomEtapa": result[5],
+                "codLugar": result[6],
+                "cedula": result[7],
+                "fechaEtapa": str(result[8]),
+                "idImpugna": result[9],
+                "nInstancia": result[10],
+                "sucesos": sucesos,
+                "resultados": resultados,
+                "documentos": documentos
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Expediente no encontrado")
+    except oracledb.Error as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 @app.post("/api/expediente/crear")
 def crear_expediente(expediente: Expediente, connection = Depends(get_db_connection)):
-    """
-    Crea un nuevo expediente para un caso. Genera número de expediente (consecutivo).
-    La primera etapa es determinada por la especialización del caso.
-    """
     try:
         cursor = connection.cursor()
         
@@ -584,9 +617,6 @@ def crear_expediente(expediente: Expediente, connection = Depends(get_db_connect
 
 @app.put("/api/expediente/{consecExpe}")
 def actualizar_etapa_expediente(consecExpe: int, etapa: Expediente, connection = Depends(get_db_connection)):
-    """
-    Actualiza los datos de una etapa del expediente.
-    """
     try:
         cursor = connection.cursor()
         
@@ -621,10 +651,6 @@ def actualizar_etapa_expediente(consecExpe: int, etapa: Expediente, connection =
 
 @app.post("/api/suceso/crear")
 def crear_suceso(suceso: Suceso, connection = Depends(get_db_connection)):
-    """
-    Crea un nuevo suceso en un expediente.
-    Clave compuesta: (codEspecializacion, pasoEtapa, noCaso, consecExpe, conSuceso)
-    """
     try:
         cursor = connection.cursor()
         
@@ -670,9 +696,6 @@ def crear_suceso(suceso: Suceso, connection = Depends(get_db_connection)):
 
 @app.get("/api/suceso/{codEsp}/{pasoEtapa}/{noCaso}/{consecExpe}")
 def obtener_sucesos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecExpe: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los sucesos de un expediente específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -707,10 +730,6 @@ def obtener_sucesos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecE
 
 @app.post("/api/resultado/crear")
 def crear_resultado(resultado: Resultado, connection = Depends(get_db_connection)):
-    """
-    Crea un nuevo resultado en un expediente.
-    Clave compuesta: (codEspecializacion, pasoEtapa, noCaso, consecExpe, conResul)
-    """
     try:
         cursor = connection.cursor()
         
@@ -756,9 +775,6 @@ def crear_resultado(resultado: Resultado, connection = Depends(get_db_connection
 
 @app.get("/api/resultado/{codEsp}/{pasoEtapa}/{noCaso}/{consecExpe}")
 def obtener_resultados_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecExpe: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los resultados de un expediente específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -793,10 +809,6 @@ def obtener_resultados_expediente(codEsp: str, pasoEtapa: int, noCaso: int, cons
 
 @app.post("/api/documento/crear")
 def crear_documento(documento: Documento, connection = Depends(get_db_connection)):
-    """
-    Crea un nuevo documento en un expediente.
-    Clave compuesta: (codEspecializacion, pasoEtapa, noCaso, consecExpe, conDoc)
-    """
     try:
         cursor = connection.cursor()
         
@@ -850,10 +862,6 @@ def upload_documento(
     file: UploadFile = File(...),
     connection = Depends(get_db_connection)
 ):
-    """
-    Subir un archivo y registrar su ruta en la tabla Documento.
-    Guarda el archivo en `storage/documents/{noCaso}/{consecExpe}/` y crea el registro en la BD.
-    """
     try:
         # Crear carpeta de almacenamiento si no existe
         base_dir = os.path.join(os.getcwd(), "storage", "documents", str(noCaso), str(consecExpe))
@@ -871,11 +879,11 @@ def upload_documento(
 
         cursor = connection.cursor()
         cursor.execute("""
-            SELECT MAX(conDoc) FROM Documento
-            WHERE codEspecializacion = :codEsp
-            AND pasoEtapa = :pasoEtapa
-            AND noCaso = :noCaso
-            AND consecExpe = :consecExpe
+            SELECT MAX(CONDOC) FROM DOCUMENTO
+            WHERE CODESPECIALIZACION = :codEsp
+            AND PASOETAPA = :pasoEtapa
+            AND NOCASO = :noCaso
+            AND CONSECEXPE = :consecExpe
         """, {
             "codEsp": codEspecializacion,
             "pasoEtapa": pasoEtapa,
@@ -886,7 +894,7 @@ def upload_documento(
         nuevo_conDoc = (max_doc if max_doc else 0) + 1
 
         cursor.execute(
-            "INSERT INTO Documento (codEspecializacion, pasoEtapa, noCaso, consecExpe, conDoc, ubicaDoc) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conDoc, :ubica)",
+            "INSERT INTO DOCUMENTO (CODESPECIALIZACION, PASOETAPA, NOCASO, CONSECEXPE, CONDOC, UBICADOC) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conDoc, :ubica)",
             {
                 "codEsp": codEspecializacion,
                 "pasoEtapa": pasoEtapa,
@@ -907,14 +915,6 @@ def upload_documento(
 
 @app.post("/api/expediente/guardar")
 def guardar_expediente(payload: Dict[str, Any], connection = Depends(get_db_connection)):
-    """
-    Guarda/actualiza un expediente junto con sus sucesos y resultados.
-    payload esperado (JSON): {
-        codEspecializacion, pasoEtapa, noCaso, consecExpe,
-        codLugar, cedula, fechaEtapa,
-        sucesos: [{descSuceso}], resultados: [{descResul}]
-    }
-    """
     try:
         cursor = connection.cursor()
 
@@ -949,11 +949,11 @@ def guardar_expediente(payload: Dict[str, Any], connection = Depends(get_db_conn
             desc = s.get("descSuceso")
             if not desc:
                 continue
-            cursor.execute("SELECT MAX(conSuceso) FROM Suceso WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+            cursor.execute("SELECT MAX(CONSUCESO) FROM SUCESO WHERE CODESPECIALIZACION = :codEsp AND PASOETAPA = :pasoEtapa AND NOCASO = :noCaso AND CONSECEXPE = :consecExpe",
                            {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
             max_s = cursor.fetchone()[0]
             nuevo = (max_s if max_s else 0) + 1
-            cursor.execute("INSERT INTO Suceso (codEspecializacion, pasoEtapa, noCaso, consecExpe, conSuceso, descSuceso) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conSuceso, :descSuceso)",
+            cursor.execute("INSERT INTO SUCESO (CODESPECIALIZACION, PASOETAPA, NOCASO, CONSECEXPE, CONSUCESO, DESCSUCESO) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conSuceso, :descSuceso)",
                            {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe, "conSuceso": nuevo, "descSuceso": desc})
 
         # Resultados
@@ -962,11 +962,11 @@ def guardar_expediente(payload: Dict[str, Any], connection = Depends(get_db_conn
             desc = r.get("descResul")
             if not desc:
                 continue
-            cursor.execute("SELECT MAX(conResul) FROM Resultado WHERE codEspecializacion = :codEsp AND pasoEtapa = :pasoEtapa AND noCaso = :noCaso AND consecExpe = :consecExpe",
+            cursor.execute("SELECT MAX(CONRESUL) FROM RESULTADO WHERE CODESPECIALIZACION = :codEsp AND PASOETAPA = :pasoEtapa AND NOCASO = :noCaso AND CONSECEXPE = :consecExpe",
                            {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe})
             max_r = cursor.fetchone()[0]
             nuevo_r = (max_r if max_r else 0) + 1
-            cursor.execute("INSERT INTO Resultado (codEspecializacion, pasoEtapa, noCaso, consecExpe, conResul, descResul) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conResul, :descResul)",
+            cursor.execute("INSERT INTO RESULTADO (CODESPECIALIZACION, PASOETAPA, NOCASO, CONSECEXPE, CONRESUL, DESCRESUL) VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :conResul, :descResul)",
                            {"codEsp": codEsp, "pasoEtapa": pasoEtapa, "noCaso": noCaso, "consecExpe": consecExpe, "conResul": nuevo_r, "descResul": desc})
 
         connection.commit()
@@ -980,9 +980,6 @@ def guardar_expediente(payload: Dict[str, Any], connection = Depends(get_db_conn
 
 @app.get("/api/caso/{noCaso}/print")
 def imprimir_caso(noCaso: int, connection = Depends(get_db_connection)):
-    """
-    Genera una vista HTML simplificada del caso con sus expedientes, sucesos, resultados y documentos.
-    """
     try:
         cursor = connection.cursor()
         cursor.execute("SELECT noCaso, fechaInicio, fechaFin, valor, codEspecializacion, codCliente FROM Caso WHERE noCaso = :noCaso", {"noCaso": noCaso})
@@ -1048,9 +1045,6 @@ def imprimir_caso(noCaso: int, connection = Depends(get_db_connection)):
 
 @app.get("/api/documento/{codEsp}/{pasoEtapa}/{noCaso}/{consecExpe}")
 def obtener_documentos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, consecExpe: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los documentos de un expediente específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -1085,9 +1079,6 @@ def obtener_documentos_expediente(codEsp: str, pasoEtapa: int, noCaso: int, cons
 
 @app.get("/api/especializacion/")
 def obtener_especializaciones(connection = Depends(get_db_connection)):
-    """
-    Obtiene todas las especializaciones disponibles.
-    """
     try:
         cursor = connection.cursor()
         query = "SELECT codEspecializacion, nomEspecializacion FROM Especializacion"
@@ -1109,10 +1100,6 @@ def obtener_especializaciones(connection = Depends(get_db_connection)):
 
 @app.get("/api/abogado/especializacion/{codEspecializacion}")
 def obtener_abogados_especializacion(codEspecializacion: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene todos los abogados con una especialización específica.
-    Usa la tabla ESPECIALIZACION_ABOGADO para la relación.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -1142,9 +1129,6 @@ def obtener_abogados_especializacion(codEspecializacion: str, connection = Depen
 
 @app.get("/api/lugar/ciudades")
 def obtener_ciudades(connection = Depends(get_db_connection)):
-    """
-    Obtiene todas las ciudades (lugares raíz sin lugCodLugar).
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -1172,16 +1156,13 @@ def obtener_ciudades(connection = Depends(get_db_connection)):
 
 @app.get("/api/lugar/entidades/{codCiudad}")
 def obtener_entidades_por_ciudad(codCiudad: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene todas las entidades (juzgados, tribunales, etc.) de una ciudad.
-    """
     try:
         cursor = connection.cursor()
         query = """
-            SELECT codLugar, nomLugar, direLugar, telLugar, idTipoLugar
-            FROM Lugar
-            WHERE lugCodLugar = :codCiudad
-            ORDER BY nomLugar
+            SELECT CODLUGAR, NOMLUGAR, DIRELUGAR, TELLUGAR, IDTIPOLUGAR
+            FROM LUGAR
+            WHERE LUG_CODLUGAR = :codCiudad
+            ORDER BY NOMLUGAR
         """
         cursor.execute(query, {"codCiudad": codCiudad})
         results = cursor.fetchall()
@@ -1202,15 +1183,12 @@ def obtener_entidades_por_ciudad(codCiudad: str, connection = Depends(get_db_con
 
 @app.get("/api/lugar/{codLugar}")
 def obtener_lugar(codLugar: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene detalles de un lugar específico.
-    """
     try:
         cursor = connection.cursor()
         query = """
-            SELECT codLugar, lugCodLugar, idTipoLugar, nomLugar, direLugar, telLugar, emailLugar
-            FROM Lugar
-            WHERE codLugar = :codLugar
+            SELECT CODLUGAR, LUG_CODLUGAR, IDTIPOLUGAR, NOMLUGAR, DIRELUGAR, TELLUGAR, EMAILLUGAR
+            FROM LUGAR
+            WHERE CODLUGAR = :codLugar
         """
         cursor.execute(query, {"codLugar": codLugar})
         result = cursor.fetchone()
@@ -1235,10 +1213,6 @@ def obtener_lugar(codLugar: str, connection = Depends(get_db_connection)):
 
 @app.get("/api/especia-etapa/{codEspecializacion}")
 def obtener_etapas_especializacion(codEspecializacion: str, connection = Depends(get_db_connection)):
-    """
-    Obtiene todas las etapas del flujo de trabajo para una especialización.
-    Muestra las etapas en orden secuencial.
-    """
     try:
         cursor = connection.cursor()
         query = """
@@ -1269,9 +1243,6 @@ def obtener_etapas_especializacion(codEspecializacion: str, connection = Depends
 
 @app.get("/api/especia-etapa/{codEspecializacion}/{pasoEtapa}")
 def obtener_etapa_especifica(codEspecializacion: str, pasoEtapa: int, connection = Depends(get_db_connection)):
-    """
-    Obtiene los detalles de una etapa específica en el flujo de una especialización.
-    """
     try:
         cursor = connection.cursor()
         query = """
