@@ -17,8 +17,8 @@ if os.path.isdir(INSTANT_CLIENT_DIR):
     oracledb.init_oracle_client(lib_dir=INSTANT_CLIENT_DIR)
 
 # Credenciales de conexión de nuestro oracle, no olvidar correr la base de datos primero
-DB_USER = "modulo"
-DB_PASSWORD = "modulo"
+DB_USER = "system"
+DB_PASSWORD = "oracle"
 DB_HOST = "localhost"
 DB_PORT = 1521
 DB_SERVICE = "XEPDB1" 
