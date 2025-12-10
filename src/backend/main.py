@@ -575,32 +575,48 @@ def crear_expediente(expediente: Expediente, connection = Depends(get_db_connect
     try:
         cursor = connection.cursor()
         
-        # Para el proxixmo numero de expediente
-        cursor.execute("SELECT MAX(consecExpe) FROM Expediente")
-        max_exp = cursor.fetchone()[0]
-        nuevo_consecExpe = (max_exp if max_exp else 0) + 1
-        
-        cursor.execute(
-            "SELECT codEspecializacion FROM Caso WHERE noCaso = :noCaso",
-            {"noCaso": expediente.noCaso}
-        )
+        # Obtener la especialización del caso
+        cursor.execute("SELECT codEspecializacion FROM Caso WHERE noCaso = :noCaso",
+                       {"noCaso": expediente.noCaso})
         esp_result = cursor.fetchone()
         
         if not esp_result:
             raise HTTPException(status_code=404, detail="Caso no encontrado")
         
-        # Por defecto la etapa es 1 (o revisar si no hay etapa 0 o algo asi)
-        primera_etapa = "1"
+        codEsp = esp_result[0]
         
-        # Se inserta el expediente
+        # Para el próximo número de expediente (solo cuenta por expediente, no por caso)
+        cursor.execute("SELECT MAX(CONSECEXPE) FROM EXPEDIENTE")
+        max_exp = cursor.fetchone()[0]
+        nuevo_consecExpe = (max_exp if max_exp else 0) + 1
+        
+        # Primera etapa es siempre 1
+        pasoEtapa = 1
+        
+        # Seleccionar un lugar por defecto (el primer juzgado civil disponible para la ciudad principal)
+        # Si no hay, usar el primero disponible
+        cursor.execute("""
+            SELECT CODLUGAR FROM LUGAR 
+            WHERE IDTIPOLUGAR = '0001' 
+            ORDER BY CODLUGAR 
+            FETCH FIRST ROW ONLY
+        """)
+        lugar_result = cursor.fetchone()
+        codLugar = lugar_result[0] if lugar_result else '00101'
+        
+        # Se inserta el expediente con todos los campos obligatorios
         query = """
-            INSERT INTO Expediente (consecExpe, noCaso, codEtapa, fechaEtapa)
-            VALUES (:consecExpe, :noCaso, :codEtapa, :fechaEtapa)
+            INSERT INTO EXPEDIENTE 
+            (CODESPECIALIZACION, PASOETAPA, NOCASO, CONSECEXPE, CODLUGAR, CEDULA, FECHAETAPA)
+            VALUES (:codEsp, :pasoEtapa, :noCaso, :consecExpe, :codLugar, :cedula, :fechaEtapa)
         """
         cursor.execute(query, {
-            "consecExpe": nuevo_consecExpe,
+            "codEsp": codEsp,
+            "pasoEtapa": pasoEtapa,
             "noCaso": expediente.noCaso,
-            "codEtapa": primera_etapa,
+            "consecExpe": nuevo_consecExpe,
+            "codLugar": codLugar,
+            "cedula": None,  # Sin abogado asignado por defecto
             "fechaEtapa": expediente.fechaEtapa
         })
         connection.commit()
@@ -609,10 +625,17 @@ def crear_expediente(expediente: Expediente, connection = Depends(get_db_connect
         return {
             "success": True,
             "consecExpe": nuevo_consecExpe,
+            "codEspecializacion": codEsp,
+            "pasoEtapa": pasoEtapa,
             "mensaje": f"Expediente {nuevo_consecExpe} creado exitosamente"
         }
     except oracledb.Error as e:
         connection.rollback()
+        raise HTTPException(status_code=500, detail=f"Error al crear expediente: {str(e)}")
+    except Exception as e:
+        connection.rollback()
+        import traceback
+        print(f"Error en crear_expediente: {str(e)}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error al crear expediente: {str(e)}")
 
 @app.put("/api/expediente/{consecExpe}")

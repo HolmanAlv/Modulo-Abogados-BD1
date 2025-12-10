@@ -268,43 +268,67 @@ function inicializarEventosExpediente() {
                 body: JSON.stringify({ noCaso: casoSeleccionado.noCaso, fechaEtapa: today })
             });
             const data = await resp.json();
-            if (!data.success) throw new Error('Error al crear expediente');
+            if (!data.success) throw new Error(data.detail || 'Error al crear expediente');
 
-            // Configurar formulario para la nueva etapa
+            // Limpiar formulario
+            document.getElementById("suceso").value = '';
+            document.getElementById("resultado").value = '';
+            document.getElementById("abogado").value = '';
+            document.getElementById("ciudad").value = '';
+            document.getElementById("entidad").value = '';
+            document.getElementById("impugnacion").value = '';
+            document.getElementById("instancia").value = '';
+            document.getElementById("nomEtapa").value = '';
+
+            // Configurar campos read-only (no se pueden modificar)
             document.getElementById("consecExpe").value = data.consecExpe;
-            document.getElementById("consecExpe").disabled = true;
+            document.getElementById("consecExpe").readOnly = true;
             document.getElementById("noEtapa").value = '1';
-            document.getElementById("noEtapa").disabled = true;
+            document.getElementById("noEtapa").readOnly = true;
             document.getElementById("fechaEtapa").value = today;
-            document.getElementById("fechaEtapa").disabled = true;
+            document.getElementById("fechaEtapa").readOnly = true;
+            document.getElementById("noCasoExp").value = casoSeleccionado.noCaso;
+            document.getElementById("noCasoExp").readOnly = true;
 
-            // Carga algunas listas relaacionadas
+            // Obtener la etapa inicial y cargar sus datos
             const codEsp = casoSeleccionado.codEspecializacion;
             await cargarEspeciaEtapaYListas(codEsp, 1);
+            
+            // Configurar el nombre de la etapa (read-only)
+            document.getElementById("nomEtapa").readOnly = true;
 
-            // Sobre los campos que sean permitidos que s pueda editar
+            // Habilitar campos editables
             document.getElementById("abogado").disabled = false;
             document.getElementById("ciudad").disabled = false;
             document.getElementById("entidad").disabled = false;
             document.getElementById("impugnacion").disabled = true;
-            // Keep suceso/resultado read-only so editing requires the modal (double-click)
-            document.getElementById("suceso").readOnly = true;
-            document.getElementById("resultado").readOnly = true;
+            document.getElementById("instancia").disabled = true;
+            document.getElementById("suceso").readOnly = true;  // Solo editable con doble click
+            document.getElementById("resultado").readOnly = true;  // Solo editable con doble click
             document.getElementById("btnAnteriorSuceso").disabled = false;
             document.getElementById("btnSiguienteSuceso").disabled = false;
             document.getElementById("btnAdjuntarDoc").disabled = false;
             btnGuardarExpediente.disabled = false;
+            btnCrearExpediente.disabled = true;  // No se puede crear otro hasta guardar este
 
             modoEdicion = true;
             etapaActualGuardada = false; // Marcar que hay etapa sin guardar
+            expedienteSeleccionado = null;
 
             // Mantener lista local de expedientes para navegación
-            expedientesCaso.unshift({ consecExpe: data.consecExpe, noCaso: casoSeleccionado.noCaso, fechaEtapa: today });
+            expedientesCaso.unshift({ 
+                consecExpe: data.consecExpe, 
+                codEspecializacion: codEsp,
+                pasoEtapa: 1,
+                noCaso: casoSeleccionado.noCaso, 
+                fechaEtapa: today 
+            });
             indiceExpedienteActual = 0;
-            expedienteSeleccionado = null;
+            
+            alert('Expediente ' + data.consecExpe + ' creado. Completa los campos y guarda.');
         } catch (err) {
             console.error(err);
-            alert('Error creando expediente');
+            alert('Error creando expediente: ' + err.message);
         }
     });
 
@@ -870,14 +894,17 @@ async function cargarEspeciaEtapaYListas(codEsp, paso) {
             const etapa = await respEt.json();
             document.getElementById('nomEtapa').value = etapa.nomEtapa || '';
 
-            if (etapa.nomEtapa && etapa.nomEtapa.toLowerCase().includes('sentenc')) {
+            // Instancia: null por defecto, Primera si es Sentencia, Segunda si es Impugnación
+            const nomEtapaLower = (etapa.nomEtapa || '').toLowerCase();
+            if (nomEtapaLower.includes('sentencia')) {
                 document.getElementById('instancia').value = 'Primera';
-            } else if (etapa.codEtapa && etapa.codEtapa.toLowerCase().includes('impugn')) {
+            } else if (nomEtapaLower.includes('impugn') || nomEtapaLower.includes('apelación') || nomEtapaLower.includes('casación')) {
                 document.getElementById('instancia').value = 'Segunda';
             } else {
                 document.getElementById('instancia').value = '';
             }
 
+            // Impugnación: solo habilitado si la etapa permite impugnación
             if (etapa.idImpugna) {
                 document.getElementById('impugnacion').disabled = false;
                 const respAll = await fetch(`${API_BASE_URL}/especia-etapa/${codEsp}`);
@@ -894,6 +921,7 @@ async function cargarEspeciaEtapaYListas(codEsp, paso) {
                 }
             } else {
                 document.getElementById('impugnacion').disabled = true;
+                document.getElementById('impugnacion').value = '';
                 document.getElementById('impugnacion').innerHTML = '<option value="">-- Seleccionar --</option>';
             }
         }
